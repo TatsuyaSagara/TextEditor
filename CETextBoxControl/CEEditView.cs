@@ -1420,139 +1420,193 @@ namespace CETextBoxControl
         /// <param name="y">表示開始位置（Y座標）（ピクセル）</param>
         /// <param name="c">表示行</param>
         private bool blockComment = false;
+        private bool lineComment = false;
         private int TextOutLine(string s, int x, int y, int c, int row)
         {
-            int ret = 0;
-            int nowX = x;
-            //int py = y;
-            int textPixelWidth = 0;
-            string text = string.Empty;
-
-            bool lineComment = false;
-            bool foundLineComment = false;
+            CEWin32Api.RECT rcClip;
+            int textColor = -1;
+            int backColor = -1;
 
             // 表示しようとする文字列から改行文字を削除
             s = m_doc.GetNotLineFeedString(s);
 
-            int column = 0;
+            int screenWidth = m_viewDispColumn * (m_ShareData.m_nColumnSpace + m_ShareData.m_charWidthPixel);
 
-            // 表示画面外左は飛ばす
-            while (column < s.Length)
+            //CEWin32Api.SetTextColor(m_hDrawDC, c);
+            //CEWin32Api.SetBkColor(m_hDrawDC, CEConstants.BackColor);
+
+            // 矩形選択行の場合の選択範囲を取得(グローバル変数にセット)
+            if ((m_selectType == RACTANGLE_RANGE_SELECT) && (m_sRng.Y <= row) && (row <= m_eRng.Y))
             {
-                if (s[column].ToString() == "\t")
+                m_doc.GetRectMovePosV(row, m_rectCaretColPosPixel, m_curCaretColPosPixel, s, m_viewLeftColumn, out m_sRectIdx, out m_eRectIdx);
+            }
+
+            int textWidth = 0;
+            int px = x;
+            int py = y;
+            lineComment = false;
+            //blockComment = false;
+
+            int col = 0;
+            Size sz;
+
+            // 表示画面外（左側）の場合は描画しないで飛ばす
+            while (col < s.Length)
+            {
+                if (s[col].ToString() == "\t")
                 {
-                    textPixelWidth = m_tabWidthPixel - ((nowX - x) % m_tabWidthPixel);
+                    textWidth = m_tabWidthPixel - ((px - x) % m_tabWidthPixel);
                 }
                 else
                 {
-                    textPixelWidth = this.GetOneWordPixel(s[column].ToString()) + m_ShareData.m_nColumnSpace;
-                    if(column + 1 < s.Length && s[column] == '/' && s[column + 1] == '/')
+                    //CEWin32Api.GetTextExtentPoint32(m_hDrawDC, s, 1, out sz);
+                    //textWidth = sz.Width;
+                    textWidth = this.GetOneWordPixel(s[col].ToString()) + m_ShareData.m_nColumnSpace;
+                    if (col + 1 < s.Length && s[col] == '/' && s[col + 1] == '/')
                     {
                         lineComment = true;
                     }
                 }
 
-                if (nowX + textPixelWidth >= 0)
+                if (px + textWidth >= 0)
                 {
                     break;
                 }
 
-                nowX += textPixelWidth;
-                column++;
+                px += textWidth;
+                col++;
             }
 
-            bool selectFlg = false;
-            bool findFlg = false;
-
-            while (column < s.Length)
+            while (col < s.Length)
             {
-                // タブの場合（タブは１つずつ表示する）
-                if (s[column].ToString() == "\t")
-                {
-                    // タブの幅取得（ピクセル単位）
-                    textPixelWidth = m_tabWidthPixel - ((nowX - x) % m_tabWidthPixel);
+                // 表示画面外（右側）の場合は描画終了
+                if (px > screenWidth) break;
 
-                    if (nowX > m_screenWidth)
+                // 文字取得
+                string txt = s[col].ToString();
+
+                // タブ
+                if (txt == "\t")
+                {
+                    txt = "^";
+                    textWidth = m_tabWidthPixel - ((px - x) % m_tabWidthPixel);
+                    textColor = CEConstants.SymbolFontColor;
+                    backColor = CEConstants.BackColor;
+                }
+                // 全角スペース
+                else if (txt == "　")
+                {
+                    txt = "□";
+                    textWidth = (m_ShareData.m_charWidthPixel * 2 + m_ShareData.m_nColumnSpace);
+                    textColor = CEConstants.SymbolFontColor;
+                    backColor = CEConstants.BackColor;
+                }
+                // 通常文字
+                else
+                {
+                    //CEWin32Api.GetTextExtentPoint32(m_hDrawDC, s, 1, out sz);
+                    //textWidth = sz.Width;
+                    textWidth = this.GetOneWordPixel(txt) + m_ShareData.m_nColumnSpace;
+                    textColor = c;
+                    backColor = CEConstants.BackColor;
+                }
+
+                // 検索結果の色(★暫定★)（もっと効率の良い方法があれば切り替える。例えば検索ルーチンを別クラスに移動するとか...）
+                int len = -1;
+                int idx = NextLineFind(row, out len);
+                if (len != -1 && idx != -1)
+                {
+                    if (idx <= col && col < idx + len)
                     {
-                        // 画面領域外（右）
-                        return nowX;
+                        // 検索
+                        textColor = CEConstants.SearchFontColor;
+                        backColor = CEConstants.SearchBackColor;
+                    }
+                }
+
+                // 範囲選択チェック
+                if (IsRngStr(row, col))
+                {
+                    if (m_selectType == RACTANGLE_RANGE_SELECT)
+                    {
+                        // 矩形選択
+                        textColor = CEConstants.SelectRctFontColor;
                     }
                     else
                     {
-                        // 表示領域内
-                        CEWin32Api.SetTextColor(m_hDrawDC, CEConstants.SymbolFontColor);
-                        CEWin32Api.SetBkColor(m_hDrawDC, CEConstants.BackColor);
-                        TextOutput(nowX, y, "^", textPixelWidth);
-                        nowX += textPixelWidth;
-                        column++;
+                        // 通常選択
+                        textColor = CEConstants.SelectFontColor;
+                    }
+
+                    if (m_searchType == SEARCH_TYPE)
+                    {
+                        // 検索
+                        textColor = CEConstants.SearchMarkFontColor;
+                        backColor = CEConstants.SearchMarkBackColor;
+                    }
+                    else
+                    {
+                        // 未検索
+                        backColor = CEConstants.SelectBackColor;
                     }
                 }
-                // 通常文字（タブやシンタックスハイライト文字がくるまで読み込み一気に表示する）
-                else
+
+                // 行コメント(★暫定★)（「ｈｔｔｐ：／／」、「ｈｔｔｐｓ：／／」、「ｆｔｐ：／／」等の場合はコメントアウトしないようにしなければならない）
+                if (((col < s.Length - 1) && (txt == "/" && s[col + 1].ToString() == "/")) || lineComment)
                 {
-                    text = string.Empty;
-                    textPixelWidth = 0;
-                    bool rightArea = false;
-                    while (column < s.Length && s[column].ToString() != "\t")
-                    {
-                        textPixelWidth += this.GetOneWordPixel(s[column].ToString()) + m_ShareData.m_nColumnSpace;
-
-                        if (nowX + textPixelWidth > m_screenWidth)
-                        {
-                            // 画面領域外（右）
-                            rightArea = true;
-                            break;
-                        }
-                        else
-                        {
-                            // 描画領域内
-                            if (!lineComment && isLineComment(s.Substring(column), s.Substring(column).Length))
-                            {
-                                textPixelWidth -= this.GetOneWordPixel("/") + m_ShareData.m_nColumnSpace; // 暫定
-                                foundLineComment = true;
-                                break;
-                            }
-                            text += s[column].ToString();
-                        }
-#if false
-                        if (nowX > m_screenWidth)
-                        {
-                            rightArea = true;
-                            break;
-                        }
-                        if (!lineComment && isLineComment(s.Substring(column), s.Substring(column).Length))
-                        {
-                            textPixelWidth -= this.GetOneWordPixel("/") + m_ShareData.m_nColumnSpace; // 暫定
-                            foundLineComment = true;
-                            break;
-                        }
-                        text += s[column].ToString();
-#endif
-                        column++;
-                    }
-
-                    // 描画するテキスト情報がある場合、描画する
-                    if (textPixelWidth != 0)
-                    {
-                        if(lineComment)
-                        {
-                            CEWin32Api.SetTextColor(m_hDrawDC, CEConstants.CommentFontColor);
-                            CEWin32Api.SetBkColor(m_hDrawDC, CEConstants.BackColor);
-                        }
-                        else
-                        {
-                            CEWin32Api.SetTextColor(m_hDrawDC, c);
-                            CEWin32Api.SetBkColor(m_hDrawDC, CEConstants.BackColor);
-                        }
-                        TextOutput(nowX, y, text, textPixelWidth);
-                        nowX += textPixelWidth;
-                    }
-                    if (rightArea) break;
-                    if (foundLineComment) lineComment = true;
+                    textColor = CEConstants.CommentFontColor;
+                    //CEWin32Api.SetTextColor(m_hDrawDC, CEConstants.CommentFontColor);
+                    lineComment = true;
                 }
+                // ファイルの先頭からチェックして現在位置がコメント内の表示なのかチェックする必要がある（今は画面内（表示領域）のみのチェックなので問題あり）
+                // 速度的な問題もあるのでちゃんと考えてから実装する必要がある
+#if false
+                // ブロックコメント(★暫定★)
+                if (((col < s.Length - 1) && (txt == "/" && s[col + 1].ToString() == "*")) || blockComment)
+                {
+                    CEWin32Api.SetTextColor(m_hDrawDC, CEConstants.CommentFontColor);
+                    blockComment = true;
+                }
+
+                // ブロックコメント(★暫定★)
+                if (((col > 0) && (txt == "/" && s[col - 1].ToString() == "*")) && blockComment)
+                {
+                    CEWin32Api.SetTextColor(m_hDrawDC, CEConstants.CommentFontColor);
+                    blockComment = false;
+                }
+#endif
+                // 文字色を設定
+                CEWin32Api.SetTextColor(m_hDrawDC, textColor);
+                CEWin32Api.SetBkColor(m_hDrawDC, backColor);
+
+                //CEWin32Api.SetTextAlign(m_hDrawDC, false);
+                //const int TRANSPARENT = 1;
+                //const int OPAQUE = 2;
+                //int ret = CEWin32Api.SetBkMode(m_hDrawDC, TRANSPARENT);
+
+                // 文字を設定
+                rcClip.left = px + m_startColPos;
+                rcClip.top = py + m_startRowPos;
+                rcClip.right = px + textWidth + m_startColPos;
+                rcClip.bottom = py + m_ShareData.m_charHeightPixel + m_startRowPos;
+                CEWin32Api.ExtTextOut(m_hDrawDC, px + m_startColPos, py + m_startRowPos, (uint)CEWin32Api.ETOOptions.ETO_CLIPPED | (uint)CEWin32Api.ETOOptions.ETO_OPAQUE, ref rcClip, txt, (uint)/*txt.Length*/1, null);
+                //CEWin32Api.ExtTextOut2(m_hDrawDC, px + m_startColPos, py + m_startRowPos, 0, txt);
+
+                // ExtTextOut2()の方を有効にすると、SetBkColorで背景の塗りつぶしができなかった。
+                // 背景の塗りつぶしをするならFillRectangleを使用しなければならないのだと思う。
+
+                //if (IsRngStr(row, col))
+                //{
+                //    Graphics g = Graphics.FromHdc(m_hDrawDC);
+                //    g.FillRectangle(Brushes.Aqua, px + m_startColPos, py + m_startRowPos, rcClip.right, m_ShareData.m_charHeightPixel);
+                //    g.Dispose();
+                //}
+
+                px += textWidth;
+                col++;
             }
 
-            return nowX;
+            return px;
         }
 
         private bool isLineComment(string str, int length)
