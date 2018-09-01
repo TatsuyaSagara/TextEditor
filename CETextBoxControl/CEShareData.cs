@@ -16,6 +16,7 @@ namespace CETextBoxControl
         public int m_cursorMode;            // カーソルモード（0:通常カーソルモード、1:フリーカーソルモード）
         public int m_tabLength;             // タブ幅(文字数)
         public int m_nColumnSpace;          // 文字と文字の隙間
+        public int m_nRowSpace;             // 行間
         public Font m_font;                 // フォント
 
         public int m_scrollColSpage;        // スクロール移動差分（この値をあけてスクロールする）
@@ -46,6 +47,7 @@ namespace CETextBoxControl
             m_cursorMode = 0;		        // カーソルモード
             m_tabLength = 4;			    // タブ幅(文字数)
             m_nColumnSpace = 0;             // 文字と文字の隙間
+            m_nRowSpace = 0;                // 行間
             m_font = new Font("ＭＳ ゴシック", 10F, FontStyle.Regular, GraphicsUnit.Point, ((byte)(128)));    // フォント
             m_scrollColSpage = 3;           // スクロール移動差分
         }

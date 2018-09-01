@@ -313,7 +313,7 @@ namespace CETextBoxControl
         {
             get
             {
-                return (int)(double)(m_ShareData.m_charHeightPixel * 1.1);
+                return (int)(double)(m_ShareData.m_charHeightPixel * 1.0);
             }
         }
 
@@ -328,10 +328,10 @@ namespace CETextBoxControl
         System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer();
 
 #if true // 高速化テスト
-        private void InvalidateRect(bool b)
+        private void InvalidateRect(IntPtr hWnd, IntPtr rect, bool erase)
         {
-            CECommon.print("@@@@@ 描画実行 @@@@@");
-            CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, false);
+            CECommon.print("InvalidateRect()");
+            CEWin32Api.InvalidateRect(hWnd, rect, erase);
         }
 #endif
 
@@ -560,8 +560,7 @@ namespace CETextBoxControl
                         // スクロールバーの設定
                         LayoutScrollBar();
                         // 再描画（★本来は不要だと思われるが、ここで再描画しないとルーラーが正常に表示されない）
-                        this.InvalidateRect(false);
-                        //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, false);
+                        this.InvalidateRect(this.Handle, IntPtr.Zero, false);
                         //this.Refresh();
                         break;
                     // 縦スクロール
@@ -574,6 +573,7 @@ namespace CETextBoxControl
                         break;
                     // 描画
                     case CEWin32Api.WM_PAINT:
+                        CECommon.print("WM_PAINT");
                         DrawTextList();
                         break;
                     // 文字入力
@@ -1442,6 +1442,8 @@ namespace CETextBoxControl
             CEWin32Api.RECT rcClip;
             int textColor = -1;
             int backColor = -1;
+            int oldTextColor = -1;
+            int oldBackColor = -1;
 
             // 表示しようとする文字列から改行文字を削除
             s = m_doc.GetNotLineFeedString(s);
@@ -1493,6 +1495,7 @@ namespace CETextBoxControl
                 col++;
             }
 
+            // 表示文字数分ループ
             while (col < s.Length)
             {
                 // 表示画面外（右側）の場合は描画終了
@@ -1592,8 +1595,8 @@ namespace CETextBoxControl
                 }
 #endif
                 // 文字色を設定
-                CEWin32Api.SetTextColor(m_hDrawDC, textColor);
-                CEWin32Api.SetBkColor(m_hDrawDC, backColor);
+                oldTextColor = (int)CEWin32Api.SetTextColor(m_hDrawDC, textColor);
+                oldBackColor = (int)CEWin32Api.SetBkColor(m_hDrawDC, backColor);
 
                 //CEWin32Api.SetTextAlign(m_hDrawDC, false);
                 //const int TRANSPARENT = 1;
@@ -1620,9 +1623,42 @@ namespace CETextBoxControl
 
                 px += textWidth;
                 col++;
+
+                //CEWin32Api.SelectObject(m_hDrawDC, hFontOld);
+                //CEWin32Api.SetTextColor(m_hDrawDC, oldTextColor);
+                //CEWin32Api.SetBkColor(m_hDrawDC, oldBackColor);
             }
 
             return px;
+        }
+
+        // テキスト反転
+        private void DispTextSelected(CEWin32Api.RECT clip/*, int color*/)
+        {
+            //IntPtr hBrush = CEWin32Api.CreateSolidBrush(color);
+            //IntPtr hBrush = CEWin32Api.SelectObject(m_hDrawDC, CEWin32Api.CreateSolidBrush(color));
+            IntPtr hBrush = CEWin32Api.SelectObject(m_hDrawDC, CEWin32Api.CreateSolidBrush(CEConstants.SelectFontColor));
+            int nROP_Old = CEWin32Api.SetROP2(m_hDrawDC, 7);
+            IntPtr hBrushOld = CEWin32Api.SelectObject(m_hDrawDC, hBrush);
+            IntPtr hrgnDraw = CEWin32Api.CreateRectRgn(clip.left, clip.top, clip.right, clip.bottom);
+            CEWin32Api.PaintRgn(m_hDrawDC, hrgnDraw);
+            CEWin32Api.DeleteObject(hrgnDraw);
+            CEWin32Api.SetROP2(m_hDrawDC, nROP_Old);
+            CEWin32Api.SelectObject(m_hDrawDC, hBrushOld);
+            CEWin32Api.DeleteObject(hBrush);
+
+
+            //    hBrush = CEWin32Api.CreateSolidBrush(CEWin32Api.SELECTEDAREA_RGB);
+            //    nROP_Old = ::SetROP2(hdc, SELECTEDAREA_ROP2);
+            //    hBrushOld = (HBRUSH)::SelectObject(hdc, hBrush);
+            //    hrgnDraw = ::CreateRectRgn(rcClip.left, rcClip.top, rcClip.right, rcClip.bottom);
+
+            //    ::PaintRgn(hdc, hrgnDraw);
+
+            //::DeleteObject(hrgnDraw);
+            //SetROP2(hdc, nROP_Old);
+            //SelectObject(hdc, hBrushOld);
+            //DeleteObject(hBrush);
         }
 
         private bool isLineComment(string str, int length)
@@ -1768,6 +1804,7 @@ namespace CETextBoxControl
                 unsafe
                 {
                     CEWin32Api.RECT rc;
+                    CEWin32Api.RECT scrc;
                     Rectangle clipRect;
                     int offsetY = -nPos * m_ShareData.m_charHeightPixel;
                     CEWin32Api.GetClientRect(this.Handle, out rc);
@@ -1785,15 +1822,44 @@ namespace CETextBoxControl
                                      rc.right, rc.bottom - Math.Abs(offsetY));
                         CEWin32Api.RECT clip = new CEWin32Api.RECT(clipRect);
                         CEWin32Api.RECT rrr;
-                        CEWin32Api.ScrollWindowEx(this.Handle, 0, offsetY, &rc, &rc, IntPtr.Zero, &rrr, CEWin32Api.SW_INVALIDATE);
+                        
+                        //int baseLinePos = (int)(double)(m_ShareData.m_charHeightPixel * 0.9);
+                        //scrc.top = 0;
+                        //scrc.left = 0;
+                        //scrc.bottom = m_viewDispRow * m_ShareData.m_charHeightPixel + m_ShareData.m_charHeightPixel;
+                        //scrc.right = rc.right;
+                        //CEWin32Api.ScrollWindowEx(this.Handle, 0, offsetY, &scrc, null, IntPtr.Zero, null, CEWin32Api.SW_ERASE | CEWin32Api.SW_INVALIDATE);
+                        CEWin32Api.ScrollWindowEx(this.Handle, 0, offsetY, &rc, null, IntPtr.Zero, null, CEWin32Api.SW_INVALIDATE);
+#if true
+                        int clip_x = 0;
+                        int clip_y = m_viewDispRow * m_ShareData.m_charHeightPixel - m_ShareData.m_charHeightPixel; // 画面に表示される行数＋フォントの高さ
+                        int clip_h = rc.bottom - clip_y;
+                        int clip_w = rc.right;
+                        Rectangle rctgl = new Rectangle(clip_x, clip_y, clip_w, clip_h);
+                        CEWin32Api.RECT lpRect = CEWin32Api.RECT.FromRectangle(rctgl);
+                        IntPtr ptrRect = Marshal.AllocHGlobal(Marshal.SizeOf(lpRect));
+                        Marshal.StructureToPtr(lpRect, ptrRect, false);
+
+                        CEWin32Api.InvalidateRect(this.Handle, ptrRect, true);
+#endif
                     }
+                    //CEWin32Api.UpdateWindow(this.Handle);
                 }
 #else
-                // 再描画
-                CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+                    // 再描画
+                    CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
                 //this.Refresh();
 #endif
             }
+            //else
+            //{
+            //    // 差分描画なし
+            //    // 再描画
+            //    // 指定されたウィンドウの更新リージョンに 1 個の長方形を追加します。
+            //    // 更新リージョンとは、ウィンドウのクライアント領域のうち、再描画しなければならない部分のことです。
+            //    CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, false);
+            //    //this.Refresh();
+            //}
 
             return;
         }
@@ -1826,8 +1892,7 @@ namespace CETextBoxControl
                 CEWin32Api.ScrollWindowEx(m_Handle, -nPos * (m_ShareData.m_charWidthPixel + m_ShareData.m_nColumnSpace), 0, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, CEWin32Api.SW_ERASE | CEWin32Api.SW_INVALIDATE);
 #else
                 // 再描画
-                this.InvalidateRect(true);
-                //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+                this.InvalidateRect(this.Handle, IntPtr.Zero, true);
                 //this.Refresh();
 #endif
             }
@@ -2016,7 +2081,8 @@ namespace CETextBoxControl
             Pen fontColor = new Pen(Color.FromArgb(255, ColorTranslator.FromHtml(CECommon.ChgRGB(CEConstants.FontColor).ToString())), 1);
 
             int x, y;
-            int baseLinePos = (int)(double)(m_ShareData.m_charHeightPixel * 0.9);
+            int baseLinePos = m_ShareData.m_charHeightPixel;
+            //int baseLinePos = (int)(double)(m_ShareData.m_charHeightPixel * 0.9);
             for (int lineIdx = m_viewLeftColumn; lineIdx < m_viewLeftColumn + m_viewDispColumn; lineIdx++)
             {
                 x = (lineIdx - m_viewLeftColumn) * m_ShareData.m_charWidthPixel + m_startColPos;
@@ -2134,7 +2200,7 @@ namespace CETextBoxControl
             if ((m_caretStrBuf.Y < m_viewTopRow) ||
                 (m_caretStrBuf.Y >= m_viewTopRow + m_viewDispRow))
             {
-                m_scrollAmountMoveV = nPos; // 高速化テスト
+                m_scrollAmountMoveV = nPos + 1; // 高速化テスト
                 // 上または下移動
                 // （キャレットの縦座標は変わらないので、m_caretPixel.Yは変更なし）
                 MoveScrollV(nPos, line);
@@ -2169,6 +2235,14 @@ namespace CETextBoxControl
 #endif
             // 再描画
             //this.Refresh();
+
+            // ★★★
+            // 【選択状態】かつ【上下スクロールでない】の場合は、全画面再描画する（遅くなっちゃうけど）
+            if (m_selectType != NONE_RANGE_SELECT && m_scrollAmountMoveV == 0)
+            {
+                // 再描画
+                this.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            }
         }
 
         /// <summary>
@@ -2441,8 +2515,7 @@ namespace CETextBoxControl
             DispPosMove();
 
             // 再描画
-            this.InvalidateRect(true);
-            //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
             //this.Refresh();
         }
 
@@ -2694,8 +2767,7 @@ namespace CETextBoxControl
             DispPosMove();
 
             // 再描画
-            this.InvalidateRect(true);
-            //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
             //this.Refresh();
         }
 
@@ -2747,8 +2819,7 @@ namespace CETextBoxControl
             DispPosMove();
 
             // 再描画
-            this.InvalidateRect(true);
-            //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
             //this.Refresh();
         }
 
@@ -2791,8 +2862,7 @@ namespace CETextBoxControl
             DispPosMove();
 
             // 再描画
-            this.InvalidateRect(true);
-            //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
             //this.Refresh();
 
             // カーソルモードを元に戻す
@@ -2861,7 +2931,7 @@ namespace CETextBoxControl
             DispPosMove();
 
             // 再描画
-            //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
             //this.Refresh();
         }
 
@@ -2904,8 +2974,7 @@ namespace CETextBoxControl
             DispPosMove();
 
             // 再描画
-            this.InvalidateRect(true);
-            //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
             //this.Refresh();
         }
 
@@ -2921,8 +2990,7 @@ namespace CETextBoxControl
             m_searchType = NOT_SEARCH_TYPE;
 
             // 再描画
-            this.InvalidateRect(true);
-            //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
             //this.Refresh();
             //DrawTextList();
         }
@@ -2961,8 +3029,7 @@ namespace CETextBoxControl
             {
 #endif
                 m_doc.InsertLineTextP(m_caretStrBuf.Y/*m_caretStrBufRow*/, m_caretStrBuf.X/*m_caretStrBufColumn*/, newChar);
-                this.InvalidateRect(false);
-                //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, false); // WM_PAINTが実行される。
+                this.InvalidateRect(this.Handle, IntPtr.Zero, false); // WM_PAINTが実行される。
                 //this.Refresh();
                 //this.SetTextData();
 #if false
@@ -2985,8 +3052,7 @@ namespace CETextBoxControl
                 DispPosMove();
 
                 // 再描画
-                this.InvalidateRect(true);
-                //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+                this.InvalidateRect(this.Handle, IntPtr.Zero, true);
                 //this.Refresh();
 #if false
             }
@@ -2998,6 +3064,7 @@ namespace CETextBoxControl
         /// </summary>
         private void DrawTextList()
         {
+            CECommon.print("DrawTextLine();");
             try
             {
                 CEWin32Api.RECT rec;
@@ -3023,7 +3090,7 @@ namespace CETextBoxControl
                 this.SetTextData();
 
                 sw.Stop();
-                Console.WriteLine("描画する画面を設定:" + sw.Elapsed);
+                //Console.WriteLine("描画する画面を設定:" + sw.Elapsed);
                 //sw.Restart();
 
                 // ルーラー表示
@@ -3131,7 +3198,7 @@ namespace CETextBoxControl
                             m_scrollAmountMoveV = 0;
                         }
 
-                        Debug.WriteLine("index:" + index);
+                        //Debug.WriteLine("index:" + index);
 #endif
                         // 文字列表示
                         // テキストデータ表示
@@ -3312,8 +3379,7 @@ namespace CETextBoxControl
 #endif
 #endif
             // 再描画
-            this.InvalidateRect(true);
-            //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
             //this.Refresh();
 
             // 選択範囲の終了位置取得
@@ -3403,8 +3469,7 @@ namespace CETextBoxControl
             m_selectType = NORMAL_RANGE_SELECT;
 
             // 再描画
-            this.InvalidateRect(true);
-            //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
         }
 
         private Boolean checkZen(string s)
@@ -3456,8 +3521,7 @@ namespace CETextBoxControl
             m_selectType = NORMAL_RANGE_SELECT;
 
             // 再描画
-            this.InvalidateRect(true);
-            //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
         }
 
         /// <summary>
@@ -3796,8 +3860,7 @@ namespace CETextBoxControl
             LayoutScrollBar();
 
             // 描画
-            this.InvalidateRect(false);
-            //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, false);
+            this.InvalidateRect(this.Handle, IntPtr.Zero, false);
             //this.Refresh();
 
             return;
@@ -3843,8 +3906,7 @@ namespace CETextBoxControl
             LayoutScrollBar();
 
             // 描画
-            this.InvalidateRect(false);
-            //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, false);
+            this.InvalidateRect(this.Handle, IntPtr.Zero, false);
             //this.Refresh();
 
             return;
@@ -3881,8 +3943,7 @@ namespace CETextBoxControl
             LayoutScrollBar();
 
             // 再描画
-            this.InvalidateRect(true);
-            //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
             //this.Refresh();
 
             /*****************************************************/
@@ -3927,8 +3988,7 @@ namespace CETextBoxControl
             LayoutScrollBar();
 
             // 再描画
-            this.InvalidateRect(true);
-            //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
             //this.Refresh();
 
             /*****************************************************/
@@ -4203,8 +4263,7 @@ namespace CETextBoxControl
             LayoutScrollBar();
 
             // 描画
-            this.InvalidateRect(false);
-            //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, false);
+            this.InvalidateRect(this.Handle, IntPtr.Zero, false);
             //this.Refresh();
         }
 
@@ -4250,8 +4309,7 @@ namespace CETextBoxControl
                 //m_caretStrBuf.Y = OpeData.m_preCaret.Y;
                 // 範囲外キャレット移動
                 DispPosMove();
-                this.InvalidateRect(true);
-                //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+                this.InvalidateRect(this.Handle, IntPtr.Zero, true);
                 //this.Refresh();
                 ShowCaret();
             }
@@ -4272,8 +4330,7 @@ namespace CETextBoxControl
                 }
                 // 範囲外キャレット移動
                 DispPosMove();
-                this.InvalidateRect(true);
-                //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+                this.InvalidateRect(this.Handle, IntPtr.Zero, true);
                 //this.Refresh();
                 ShowCaret();
             }
@@ -4318,8 +4375,7 @@ namespace CETextBoxControl
                 }
                 // 範囲外キャレット移動
                 DispPosMove();
-                this.InvalidateRect(true);
-                //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+                this.InvalidateRect(this.Handle, IntPtr.Zero, true);
                 //this.Refresh();
             }
             else if (OpeData.m_ope == UndoRedoCode.UR_DELETE)
@@ -4329,8 +4385,7 @@ namespace CETextBoxControl
                 m_caretStrBuf.Y = OpeData.m_preCaret.Y;
                 // 範囲外キャレット移動
                 DispPosMove();
-                this.InvalidateRect(true);
-                //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+                this.InvalidateRect(this.Handle, IntPtr.Zero, true);
                 //this.Refresh();
             }
         }
@@ -4469,8 +4524,7 @@ namespace CETextBoxControl
             } //for
 
             CaretPosMove();
-            this.InvalidateRect(true);
-            //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
         }
 
         /// <summary>
@@ -4683,8 +4737,7 @@ namespace CETextBoxControl
             } // for
 
             CaretPosMove();
-            this.InvalidateRect(true);
-            //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
         }
 
         /// <summary>

@@ -336,12 +336,23 @@ namespace CETextBoxControl
         [StructLayout(LayoutKind.Sequential)]
         public struct RECT
         {
+            public RECT(int left_, int top_, int right_, int bottom_)
+            {
+                left = left_;
+                top = top_;
+                right = right_;
+                bottom = bottom_;
+            }
             public RECT(Rectangle rect)
             {
                 left = rect.Left;
                 top = rect.Top;
                 right = rect.Right;
                 bottom = rect.Bottom;
+            }
+            public static RECT FromRectangle(Rectangle rectangle)
+            {
+                return new RECT(rectangle.Left, rectangle.Top, rectangle.Right, rectangle.Bottom);
             }
             public Int32 left, top, right, bottom;
         }
@@ -368,9 +379,6 @@ namespace CETextBoxControl
 
         [DllImport("user32.dll")]
         public static extern bool InvalidateRect(IntPtr hWnd, IntPtr lpRect, bool bErase);
-
-        //[DllImport("user32.dll")]
-        //public static extern void PostQuitMessage(int nExitCode);
 
         //[DllImport("coredll.dll")]
         //public static extern IntPtr SendMessage(IntPtr hWnd, int Msg, IntPtr wParam, IntPtr lParam);
@@ -430,6 +438,33 @@ namespace CETextBoxControl
         public extern static IntPtr SelectObject(IntPtr hObject, IntPtr hFont);
         [DllImport("gdi32.dll")]
         public extern static bool DeleteObject(System.IntPtr hObject);
+
+        [DllImport("gdi32.dll")]
+        public extern static int SetROP2(IntPtr hdc, int fnDrawMode);
+        [DllImport("gdi32.dll")]
+        public extern static IntPtr CreateRectRgn(int nLeftRect, int nTopRect, int nRightRect, int nBottomRect);
+        [DllImport("gdi32.dll")]
+        public extern static bool PaintRgn(IntPtr hdc, IntPtr hrgn);
+
+        public enum BinaryRasterOperations
+        {
+            R2_BLACK = 1,
+            R2_NOTMERGEPEN = 2,
+            R2_MASKNOTPEN = 3,
+            R2_NOTCOPYPEN = 4,
+            R2_MASKPENNOT = 5,
+            R2_NOT = 6,
+            R2_XORPEN = 7,
+            R2_NOTMASKPEN = 8,
+            R2_MASKPEN = 9,
+            R2_NOTXORPEN = 10,
+            R2_NOP = 11,
+            R2_MERGENOTPEN = 12,
+            R2_COPYPEN = 13,
+            R2_MERGEPENNOT = 14,
+            R2_MERGEPEN = 15,
+            R2_WHITE = 16
+        }
 
         //[DllImport("gdi32.dll")]
         //public static extern bool GetTextExtentPoint32(IntPtr hdc, string lpString, int cbString, out Size lpSize);
@@ -534,8 +569,8 @@ namespace CETextBoxControl
         [DllImport("user32.dll")]
         public static extern bool EndPaint(IntPtr hWnd, [In] ref PAINTSTRUCT lpPaint);
         //public static unsafe extern IntPtr BeginPaint(IntPtr hWnd, PAINTSTRUCT* ps);
-        //[DllImport("user32.dll")]
-        //public static extern bool UpdateWindow(IntPtr hWnd);
+        [DllImport("user32.dll")]
+        public static extern bool UpdateWindow(IntPtr hWnd);
 
         //[DllImport("user32.dll", SetLastError = true)]
         //public static extern bool GetWindowRect(IntPtr hwnd, out RECT lpRect);
