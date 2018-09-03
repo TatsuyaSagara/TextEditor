@@ -160,9 +160,21 @@ namespace CETextBoxControl
 
 #if true // 高速化テスト
         /// <summary>
-        /// 縦スクロールの移動量
+        /// 縦スクロール量（行数）
+        /// ※スクロール行数＋１（範囲選択時の描画を考慮し＋１）
         /// </summary>
-        private int m_scrollAmountMoveV;
+        private int m_scrollAmountNumV;
+
+        /// <summary>
+        /// 縦スクロール量（ピクセル）
+        /// </summary>
+        private int m_scrollAmountPixelV
+        {
+            get
+            {
+                return m_scrollAmountNumV * m_ShareData.m_charHeightPixel;
+            }
+        }
 #endif
 
         /// <summary>
@@ -313,7 +325,21 @@ namespace CETextBoxControl
         {
             get
             {
-                return (int)(double)(m_ShareData.m_charHeightPixel * 1.0);
+                //return (int)(double)(m_ShareData.m_charHeightPixel * 1.0);
+                return m_rulerHeightPixel; // 開始位置はルーラのあとに表示する
+            }
+        }
+
+        /// <summary>
+        /// ルーラの高さ（ピクセル）
+        /// ルーラの高さは、フォントの高さと同じにしておく
+        /// フォントのサイズが変更された場合、同様に拡大するため
+        /// </summary>
+        private int m_rulerHeightPixel
+        {
+            get
+            {
+                return m_ShareData.m_charHeightPixel;
             }
         }
 
@@ -1303,7 +1329,7 @@ namespace CETextBoxControl
             // 垂直スクロールバー
             m_vScrollBar.Location = new Point(rc.right - m_vScrollBar.Width, rc.top);
             m_vScrollBar.Size = new Size(m_vScrollBar.Width, rc.bottom - m_hScrollBar.Height);
-            //m_viewDispRow = ((rc.bottom - m_hScrollBar.Height) - m_startRowPos) / m_ShareData.m_charHeightPixel;
+            //m_viewDispRow = ((clientRect.bottom - m_hScrollBar.Height) - m_startRowPos) / m_ShareData.m_charHeightPixel;
             m_viewDispRow = ((rc.bottom - m_hScrollBar.Height) - m_startRowPos) / m_ShareData.m_charHeightPixel;
             m_vScrollBar.Minimum = 0;
             m_vScrollBar.Maximum = (nVAllLines / nVScrollRate);
@@ -1799,67 +1825,64 @@ namespace CETextBoxControl
                 m_viewTopRow += nPos; // 画面に表示される先頭行を指定
                 m_doc.getPosition(m_viewTopRow, out m_viewTopLineL, out m_viewTopLineLP);
 
-                //CEWin32Api.SetScrollInfo(this.Handle, CEWin32Api.SB_VERT, ref m_scrollInfoV, true);
-#if true // 高速化テスト
                 unsafe
                 {
-                    CEWin32Api.RECT rc;
-                    CEWin32Api.RECT scrc;
-                    Rectangle clipRect;
+                    CEWin32Api.RECT cRect;
                     int offsetY = -nPos * m_ShareData.m_charHeightPixel;
-                    CEWin32Api.GetClientRect(this.Handle, out rc);
-                    if (offsetY > 0) // 上にスクロール
+                    CEWin32Api.GetClientRect(this.Handle, out cRect);
+                    cRect.top = m_rulerHeightPixel; // ルーラはスクロール及び再描画対象外
+                    if (offsetY > 0)
                     {
-                        clipRect = new Rectangle(0, 0 + m_startRowPos,
-                                    rc.right, rc.bottom - Math.Abs(offsetY));
-                        CEWin32Api.RECT clip = new CEWin32Api.RECT(clipRect);
-                        CEWin32Api.RECT rrr;
-                        CEWin32Api.ScrollWindowEx(this.Handle, 0, offsetY, &clip, &clip, IntPtr.Zero, &rrr, CEWin32Api.SW_INVALIDATE);
-                    }
-                    else if (offsetY < 0) // 下にスクロール
-                    {
-                        clipRect = new Rectangle(0, Math.Abs(offsetY) + m_startRowPos,
-                                     rc.right, rc.bottom - Math.Abs(offsetY));
-                        CEWin32Api.RECT clip = new CEWin32Api.RECT(clipRect);
-                        CEWin32Api.RECT rrr;
-                        
-                        //int baseLinePos = (int)(double)(m_ShareData.m_charHeightPixel * 0.9);
-                        //scrc.top = 0;
-                        //scrc.left = 0;
-                        //scrc.bottom = m_viewDispRow * m_ShareData.m_charHeightPixel + m_ShareData.m_charHeightPixel;
-                        //scrc.right = rc.right;
-                        //CEWin32Api.ScrollWindowEx(this.Handle, 0, offsetY, &scrc, null, IntPtr.Zero, null, CEWin32Api.SW_ERASE | CEWin32Api.SW_INVALIDATE);
-                        CEWin32Api.ScrollWindowEx(this.Handle, 0, offsetY, &rc, null, IntPtr.Zero, null, CEWin32Api.SW_INVALIDATE);
-#if true
-                        int clip_x = 0;
-                        int clip_y = m_viewDispRow * m_ShareData.m_charHeightPixel - m_ShareData.m_charHeightPixel; // 画面に表示される行数＋フォントの高さ
-                        int clip_h = rc.bottom - clip_y;
-                        int clip_w = rc.right;
-                        Rectangle rctgl = new Rectangle(clip_x, clip_y, clip_w, clip_h);
-                        CEWin32Api.RECT lpRect = CEWin32Api.RECT.FromRectangle(rctgl);
-                        IntPtr ptrRect = Marshal.AllocHGlobal(Marshal.SizeOf(lpRect));
-                        Marshal.StructureToPtr(lpRect, ptrRect, false);
+                        // 下にスクロール（上に移動）
 
+                        // ScrollWindowEx
+                        CEWin32Api.ScrollWindowEx(
+                                        this.Handle,
+                                        0,                  // 水平方向のスクロール量
+                                        offsetY,            // 垂直方向のスクロール量
+                                        &cRect,             // クライアント領域
+                                        &cRect,             // クリッピング長方形
+                                        IntPtr.Zero,        // 更新リージョンのハンドル
+                                        null,               // 無効にすべきリージョン
+                                        CEWin32Api.SW_INVALIDATE | CEWin32Api.SW_ERASE);
+
+                        // InvalidateRect
+                        Rectangle rctgl = new Rectangle(
+                                        0,                  // 左上のＸ座行
+                                        m_rulerHeightPixel, // 左上のＹ座標
+                                        cRect.right,        // 右下のＸ座標
+                                        Math.Abs(offsetY) + m_ShareData.m_charHeightPixel);     // 右下のＹ座標
+                        IntPtr ptrRect = CECommon.RectangleToIntPtr(rctgl); // RectangleからIntPtrへ変換
                         CEWin32Api.InvalidateRect(this.Handle, ptrRect, true);
-#endif
                     }
-                    //CEWin32Api.UpdateWindow(this.Handle);
+                    else if (offsetY < 0)
+                    {
+                        // 上にスクロール（下に移動）
+
+                        // ScrollWindowEx
+                        CEWin32Api.ScrollWindowEx(
+                                        this.Handle,
+                                        0,                  // 水平方向のスクロール量
+                                        offsetY,            // 垂直方向のスクロール量
+                                        &cRect,             // クライアント領域
+                                        &cRect,             // クリッピング長方形
+                                        IntPtr.Zero,        // 更新リージョンのハンドル
+                                        null,               // 無効にすべきリージョン
+                                        CEWin32Api.SW_INVALIDATE | CEWin32Api.SW_ERASE);
+
+                        // InvalidateRect
+                        // （表示行数(欠けている行は省く) ＊ フォントの高さ ＋ ルーラの高さ） － 縦スクロール量
+                        int clip_y = (m_viewDispRow * m_ShareData.m_charHeightPixel + m_rulerHeightPixel) - m_scrollAmountPixelV;
+                        Rectangle rctgl = new Rectangle(
+                                        0,                  // 左上のＸ座行
+                                        clip_y,             // 左上のＹ座標
+                                        cRect.right,        // 右下のＸ座標
+                                        cRect.bottom - clip_y); // 右下のＹ座標
+                        IntPtr ptrRect = CECommon.RectangleToIntPtr(rctgl); // RectangleからIntPtrへ変換
+                        CEWin32Api.InvalidateRect(this.Handle, ptrRect, true);
+                    }
                 }
-#else
-                    // 再描画
-                    CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
-                //this.Refresh();
-#endif
             }
-            //else
-            //{
-            //    // 差分描画なし
-            //    // 再描画
-            //    // 指定されたウィンドウの更新リージョンに 1 個の長方形を追加します。
-            //    // 更新リージョンとは、ウィンドウのクライアント領域のうち、再描画しなければならない部分のことです。
-            //    CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, false);
-            //    //this.Refresh();
-            //}
 
             return;
         }
@@ -2071,6 +2094,17 @@ namespace CETextBoxControl
         /// </summary>
         private void DispRuler()
         {
+            CEWin32Api.RECT rc;
+            CEWin32Api.GetClientRect(this.Handle, out rc);
+
+            int clip_x = 0;
+            int clip_y = 0;
+            int clip_w = rc.right;
+            int clip_h = m_rulerHeightPixel;
+            Rectangle rctgl = new Rectangle(clip_x, clip_y, clip_w, clip_h);
+            IntPtr ptrRect = CECommon.RectangleToIntPtr(rctgl); // RectangleからIntPtrへ変換
+            CEWin32Api.InvalidateRect(this.Handle, ptrRect, true);
+
             // Graphicsオブジェクト生成
             Graphics g = Graphics.FromHdc(m_hDrawDC);
 
@@ -2081,7 +2115,7 @@ namespace CETextBoxControl
             Pen fontColor = new Pen(Color.FromArgb(255, ColorTranslator.FromHtml(CECommon.ChgRGB(CEConstants.FontColor).ToString())), 1);
 
             int x, y;
-            int baseLinePos = m_ShareData.m_charHeightPixel;
+            //int baseLinePos = m_ShareData.m_charHeightPixel;
             //int baseLinePos = (int)(double)(m_ShareData.m_charHeightPixel * 0.9);
             for (int lineIdx = m_viewLeftColumn; lineIdx < m_viewLeftColumn + m_viewDispColumn; lineIdx++)
             {
@@ -2107,13 +2141,13 @@ namespace CETextBoxControl
                 {
                     y = (int)((double)m_ShareData.m_charHeightPixel * 0.65);
                 }
-                g.DrawLine(fontColor, x, y, x, baseLinePos);
+                g.DrawLine(fontColor, x, y, x, m_rulerHeightPixel - 2); // -2：ルーラのラインと本文が被るので2ピクセルほど上に線を引く
             }
 
             // 下線
-            CEWin32Api.RECT rc;
+            //CEWin32Api.RECT clientRect;
             CEWin32Api.GetClientRect(this.Handle, out rc);
-            g.DrawLine(fontColor, m_startColPos, baseLinePos, rc.right, baseLinePos);
+            g.DrawLine(fontColor, m_startColPos, m_rulerHeightPixel - 2, rc.right, m_rulerHeightPixel - 2); // -2：ルーラのラインと本文が被るので2ピクセルほど上に線を引く
 
 #if false // ShowCaretPos()に移行
             // カーソル位置
@@ -2200,7 +2234,7 @@ namespace CETextBoxControl
             if ((m_caretStrBuf.Y < m_viewTopRow) ||
                 (m_caretStrBuf.Y >= m_viewTopRow + m_viewDispRow))
             {
-                m_scrollAmountMoveV = nPos + 1; // 高速化テスト
+                m_scrollAmountNumV = nPos + 1; // 1行移動する場合は2行分
                 // 上または下移動
                 // （キャレットの縦座標は変わらないので、m_caretPixel.Yは変更なし）
                 MoveScrollV(nPos, line);
@@ -2238,7 +2272,7 @@ namespace CETextBoxControl
 
             // ★★★
             // 【選択状態】かつ【上下スクロールでない】の場合は、全画面再描画する（遅くなっちゃうけど）
-            if (m_selectType != NONE_RANGE_SELECT && m_scrollAmountMoveV == 0)
+            if ((m_selectType != NONE_RANGE_SELECT && m_scrollAmountNumV == 0) || !IsRangeKey())
             {
                 // 再描画
                 this.InvalidateRect(this.Handle, IntPtr.Zero, true);
@@ -3180,22 +3214,22 @@ namespace CETextBoxControl
                         py = index * m_ShareData.m_charHeightPixel;
 #if true // 高速化テスト
                         // 必要な部分以外は描画しない
-                        if (m_scrollAmountMoveV < 0) // 下にスクロール
+                        if (m_scrollAmountNumV < 0) // 下にスクロール（上に移動）
                         {
-                            if (m_scrollAmountMoveV + index >= 0)
+                            if (m_scrollAmountNumV + index >= 0)
                             {
                                 pLine++;
                                 continue;
                             }
                         }
-                        else if (m_scrollAmountMoveV > 0) // 上にスクロール
+                        else if (m_scrollAmountNumV > 0) // 上にスクロール（下に移動）
                         {
-                            if ((m_scrollAmountMoveV > 0) && (m_viewDispRow - m_scrollAmountMoveV > index))
+                            if (/*(m_scrollAmountNumV > 0) &&*/ (m_viewDispRow - m_scrollAmountNumV > index))
                             {
                                 pLine++;
                                 continue;
                             }
-                            m_scrollAmountMoveV = 0;
+                            m_scrollAmountNumV = 0;
                         }
 
                         //Debug.WriteLine("index:" + index);
@@ -3243,7 +3277,7 @@ namespace CETextBoxControl
 
 #if true // 高速化テスト
             // 上下の移動量を初期化 ！！ここで初期化するのは強引なのでちゃんとしたところに移動予定！！
-            m_scrollAmountMoveV = 0;
+            m_scrollAmountNumV = 0;
 #endif
         }
 

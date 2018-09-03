@@ -6,11 +6,21 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Runtime.InteropServices;
 
 namespace CETextBoxControl
 {
     public class CECommon
     {
+        public static IntPtr RectangleToIntPtr(Rectangle rct)
+        {
+            CEWin32Api.RECT lpRect = CEWin32Api.RECT.FromRectangle(rct);
+            IntPtr ptrRect = Marshal.AllocHGlobal(Marshal.SizeOf(lpRect));
+            Marshal.StructureToPtr(lpRect, ptrRect, false);
+
+            return ptrRect;
+        }
+
         /// <summary>
         /// RGB形式で指定した色を数値に変換
         /// </summary>

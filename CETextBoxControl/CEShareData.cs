@@ -9,15 +9,50 @@ namespace CETextBoxControl
 {
     public class CEShareData
     {
-        public int m_charWidthPixel;        // 1文字の文字幅(ピクセル)
-        public int m_charHeightPixel;       // 1文字の文字高(ピクセル)
-        public int m_wrapPositionPixel;     // 折返し位置(ピクセル)
-        public Boolean m_wrapPositionFlag;  // 折返し有無
-        public int m_cursorMode;            // カーソルモード（0:通常カーソルモード、1:フリーカーソルモード）
-        public int m_tabLength;             // タブ幅(文字数)
-        public int m_nColumnSpace;          // 文字と文字の隙間
-        public int m_nRowSpace;             // 行間
-        public Font m_font;                 // フォント
+        /// <summary>
+        /// 1文字の文字幅（ピクセル）
+        /// </summary>
+        public int m_charWidthPixel;
+
+        /// <summary>
+        /// 1文字の文字高（ピクセル）
+        /// </summary>
+        public int m_charHeightPixel;
+
+        /// <summary>
+        /// 折返し位置（ピクセル）
+        /// </summary>
+        public int m_wrapPositionPixel;
+
+        /// <summary>
+        /// 折返し有無
+        /// </summary>
+        public Boolean m_wrapPositionFlag;
+
+        /// <summary>
+        /// カーソルモード（0:通常カーソルモード、1:フリーカーソルモード）
+        /// </summary>
+        public int m_cursorMode;
+
+        /// <summary>
+        /// タブ幅（文字数）
+        /// </summary>
+        public int m_tabLength;
+
+        /// <summary>
+        /// 文字と文字の隙間
+        /// </summary>
+        public int m_nColumnSpace;
+
+        /// <summary>
+        /// 行間
+        /// </summary>
+        public int m_nRowSpace;
+
+        /// <summary>
+        /// フォント
+        /// </summary>
+        public Font m_font;
 
         public int m_scrollColSpage;        // スクロール移動差分（この値をあけてスクロールする）
                                             // もし3の場合、、、
