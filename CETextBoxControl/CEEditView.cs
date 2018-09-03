@@ -2224,8 +2224,20 @@ namespace CETextBoxControl
                 nPos = line - m_caretStrBuf.Y - 1;
             }
 
+            // 範囲選択から未選択になったか確認するために確保しておく
+            int CurrentSelectStatus = m_selectType;
+
             // 選択範囲の開始位置取得
             StarRange();
+
+            // 範囲選択→範囲未選択に移行した場合、選択状態をクリアする
+            if (CurrentSelectStatus != m_selectType && m_selectType == NONE_RANGE_SELECT && m_scrollAmountNumV == 0)
+            {
+                // 全画面が対象
+                this.InvalidateRect(this.Handle, IntPtr.Zero, true);
+                // 即更新
+                this.Update();
+            }
 
             // キャレットの行を設定
             m_caretStrBuf.Y += nPos;
@@ -2270,9 +2282,9 @@ namespace CETextBoxControl
             // 再描画
             //this.Refresh();
 
-            // ★★★
+            // 高速化対応
             // 【選択状態】かつ【上下スクロールでない】の場合は、全画面再描画する（遅くなっちゃうけど）
-            if ((m_selectType != NONE_RANGE_SELECT && m_scrollAmountNumV == 0) || !IsRangeKey())
+            if ((m_selectType != NONE_RANGE_SELECT && m_scrollAmountNumV == 0))
             {
                 // 再描画
                 this.InvalidateRect(this.Handle, IntPtr.Zero, true);
