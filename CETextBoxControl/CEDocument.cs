@@ -490,13 +490,12 @@ namespace CETextBoxControl
         {
             string str = "";
 
-            // ★本来は必要だが遅いので外しておく
-            //if (0 <= row && row < this.GetLineCountP())
-            //{
-            //str = m_textList[lLine].m_text.Substring(m_textList[lLine].m_physicalLine[pLine].m_offset, m_textList[lLine].m_physicalLine[pLine].m_length);
-            SPhysicalLine spd = m_textList[lLine].m_physicalLine[pLine];
-            str = m_textList[lLine].m_text.Substring(spd.m_offset, spd.m_length);
-            //}
+            if (0 <= row && row < this.GetLineCountP())
+            {
+                str = m_textList[lLine].m_text.Substring(m_textList[lLine].m_physicalLine[pLine].m_offset, m_textList[lLine].m_physicalLine[pLine].m_length);
+                SPhysicalLine spd = m_textList[lLine].m_physicalLine[pLine];
+                str = m_textList[lLine].m_text.Substring(spd.m_offset, spd.m_length);
+            }
 
             return str;
         }
