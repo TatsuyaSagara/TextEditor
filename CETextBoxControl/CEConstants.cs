@@ -24,7 +24,8 @@ namespace CETextBoxControl
         public const int TabWidth = 100;     // タブボタンの幅
 
         public const string EmptyViewName = "[無題]";   // 空のビューの名称
-#if false
+#if false // 標準
+
         // 背景色
         public static int BackColor = CECommon.GetColor(0x00, 0x00, 0x00);
         public static int kBackColor = CECommon.GetColor(0x00, 0x00, 0x00);     // 非アクティブになった時の色
@@ -58,10 +59,9 @@ namespace CETextBoxControl
         public static int editLineNumFtColor = CECommon.GetColor(0xff, 0x33, 0x33);     // 編集行の文字色
 
         public static int NumberLineColor = CECommon.GetColor(0x66, 0x44, 0xff);        // ライン色
-#else
+#endif
 
-#if false
-        // 黒ベース
+#if false // 黒ベース
 
         // 背景色
         public static int BackColor = CECommon.GetColor(0x00, 0x00, 0x00);              // 背景
@@ -97,8 +97,7 @@ namespace CETextBoxControl
         //public static int TabFontColor = CECommon.GetColor(0xff, 0xff, 0xff);           // フォント
 #endif
 
-#if true
-        // 白ベース
+#if true // 白ベース
 
         // 背景色
         public static int BackColor = CECommon.GetColor(0xff, 0xff, 0xff);              // 背景
@@ -146,9 +145,8 @@ namespace CETextBoxControl
         //public static int TabBackColor = CECommon.GetColor(0x00, 0x7a, 0xcc);           // 背景
         //public static int TabFontColor = CECommon.GetColor(0xff, 0xff, 0xff);           // フォント
 #endif
-#if false
-        // 青ベース
 
+#if false // 青ベース
         // 背景色
         public static int BackColor = CECommon.GetColor(0x00, 0x00, 0xff);              // 背景
 
@@ -181,7 +179,6 @@ namespace CETextBoxControl
         //public static int TabHoverColor = CECommon.GetColor(0xff, 0xe5, 0xaf);           // 背景（マウスを重ねる）
         //public static int TabBackColor = CECommon.GetColor(0x00, 0x7a, 0xcc);           // 背景
         //public static int TabFontColor = CECommon.GetColor(0xff, 0xff, 0xff);           // フォント
-#endif
 #endif
     }
 }
