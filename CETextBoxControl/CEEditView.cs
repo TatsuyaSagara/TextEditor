@@ -28,8 +28,140 @@ namespace CETextBoxControl
         public string encode; // エンコード
     }
 
+#if false
+    /// <summary>
+    /// キャレットの位置
+    /// X/Y：現在のキャレット位置
+    /// BX/BY：ひとつ前のキャレット位置
+    /// </summary>
+    public class caretPoint
+    {
+        private int x, y;
+        private int bx, by;
+        public int X
+        {
+            set
+            {
+                bx = x;
+                x = value;
+            }
+            get { return x; }
+        }
+        public int Y
+        {
+            set
+            {
+                by = y;
+                y = value;
+            }
+            get { return y; }
+        }
+        public int BX
+        {
+            get { return bx; }
+        }
+        public int BY
+        {
+            get { return by; }
+        }
+
+        // コンストラクタ
+        public caretPoint()
+        {
+            x = -1;
+            y = -1;
+            bx = -1;
+            by = -1;
+            CECommon.print("----------------------> caretPoint Constractor");
+        }
+
+        // Point型に変換
+        public Point ToPoint()
+        {
+            Point p = new Point();
+            p.X = x;
+            p.Y = y;
+            return p;
+        }
+    }
+#endif
+
     public class CEEditView : Control
     {
+        // ★データ管理用クラスへ移行予定のメソッド★★★★★★★★★★★★★★★★★★★★
+
+        // --------------------------------------------------
+
+        /// <summary>
+        /// キャレット位置(0インデックス）
+        /// 文字単位の位置
+        /// 　"あいう"の"う"の位置では"2"
+        /// 　"abc"の"c"の位置でも"2"
+        /// 　となる
+        /// </summary>
+        private Point m_caretPositionP;
+
+        /// <summary>
+        /// キャレット位置のピクセル座標（0インデックス）（文字列の左端が0）
+        /// エディタ部分の一番左上が 0:0 となる
+        /// </summary>
+        private Point m_caretPositionPixel/* = new Point()*/;
+
+        // --------------------------------------------------
+
+        /// <summary>
+        /// 画面に表示されている【一番上の物理行】（0インデックス）
+        /// （折り返しなしの場合：論理行＝物理行）
+        /// </summary>
+        private int m_viewTopRowP;
+
+        /// <summary>
+        /// 画面に表示されている【一番上の論理行】（0インデックス）
+        /// </summary>
+        private int m_viewTopRowL;
+
+        /// <summary>
+        /// 画面に表示されている【一番上の論理行内の物理行】（0インデックス）
+        /// </summary>
+        private int m_viewTopRowLP;
+    
+        /// <summary>
+        /// 画面に表示されている【一番左の半角単位の位置】(0インデックス)
+        /// </summary>
+        private int m_viewLeftCol;
+
+        // --------------------------------------------------
+
+        /// <summary>
+        /// 画面に表示される行数
+        /// </summary>
+        private int m_viewDispRow;
+
+        /// <summary>
+        /// 画面に表示される列数
+        /// </summary>
+        private int m_viewDispCol;
+
+        /// <summary>
+        /// 画面表示幅（ピクセル）
+        /// ※未使用
+        /// </summary>
+        //private int m_screenWidthPixel;
+
+
+
+
+
+        // ★データ管理用クラスへ移行予定のメソッド★★★★★★★★★★★★★★★★★★★★
+
+
+
+
+
+
+
+
+
         /// <summary>
         /// キャレットポジション用デリゲートの宣言
         /// CaretPositionEventArgs型のオブジェクトを返すようにする
@@ -89,57 +221,15 @@ namespace CETextBoxControl
         private Encoding m_readEncode = Encoding.GetEncoding(Ude.Charsets.SHIFT_JIS);
 
         /// <summary>
-        /// 画面表示幅（ピクセル）
-        /// </summary>
-        private int m_screenWidth;
-
-        /// <summary>
-        /// 画面に表示される行数
-        /// </summary>
-        private int m_viewDispRow;
-
-        /// <summary>
-        /// 画面に表示される列数
-        /// </summary>
-        private int m_viewDispColumn;
-
-        /// <summary>
-        /// 画面に表示される一番上の論理行(0インデックス)
-        /// </summary>
-        private int m_viewTopRow;
-
-        /// <summary>
-        /// 現在一番上に表示されている位置（論理位置）
-        /// </summary>
-        private int m_viewTopLineL;
-
-        /// <summary>
-        /// 現在一番上に表示されている位置（論理行内の物理位置）
-        /// </summary>
-        private int m_viewTopLineLP;
-
-        /// <summary>
-        /// 画面に表示される一番左の列(0インデックス)
-        /// （半角単位）
-        /// </summary>
-        private int m_viewLeftColumn;
-
-        /// <summary>
-        /// キャレット位置(0インデックス）
-        /// (物理位置)
-        /// </summary>
-        private Point m_caretStrBuf;
-
-        /// <summary>
         /// キャレットの配列位置(0インデックス)
         /// レイアウト（改行した場合）位置
         /// </summary>
-        private Point m_caretStrBufLayout;
+        //private Point m_caretStrBufLayout;
 
         /// <summary>
-        /// キャレットのピクセル座標（0インデックス）（文字列の左端が0）
+        /// ひとつ前のキャレットのピクセル座標
         /// </summary>
-        private Point m_caretPixel;
+        //private Point m_prevCaretPixel;
 
         /// <summary>
         /// 垂直スクロールバーの縮尺
@@ -353,14 +443,6 @@ namespace CETextBoxControl
         /// </summary>
         System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer();
 
-#if true // 高速化テスト
-        private void InvalidateRect(IntPtr hWnd, IntPtr rect, bool erase)
-        {
-            CECommon.print("InvalidateRect()");
-            CEWin32Api.InvalidateRect(hWnd, rect, erase);
-        }
-#endif
-
         /// <summary>
         /// コンストラクタ
         /// </summary>
@@ -412,20 +494,20 @@ namespace CETextBoxControl
         private void Init()
         {
             // 表示位置
-            m_viewTopRow = 0;
-            m_viewTopLineL = 0;
-            m_viewTopLineLP = 0;
-            m_viewLeftColumn = 0;
+            m_viewTopRowP = 0;
+            m_viewTopRowL = 0;
+            m_viewTopRowLP = 0;
+            m_viewLeftCol = 0;
 
             // キャレットの読込文字列の配列位置
-            m_caretStrBuf.X = 0;
-            m_caretStrBuf.Y = 0;
+            m_caretPositionP.X = 0;
+            m_caretPositionP.Y = 0;
             m_curCaretColPosPixel = 0;
-            m_caretStrBufLayout = m_caretStrBuf;
+            //m_caretStrBufLayout = m_caretPositionP;
 
             // キャレットのピクセル座標
-            m_caretPixel.X = 0;
-            m_caretPixel.Y = 0;
+            m_caretPositionPixel.X = 0;
+            m_caretPositionPixel.Y = 0;
 
             // ドラッグ中フラグ
             m_dragFlg = false;
@@ -586,7 +668,7 @@ namespace CETextBoxControl
                         // スクロールバーの設定
                         LayoutScrollBar();
                         // 再描画（★本来は不要だと思われるが、ここで再描画しないとルーラーが正常に表示されない）
-                        this.InvalidateRect(this.Handle, IntPtr.Zero, false);
+                        CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, false);
                         //this.Refresh();
                         break;
                     // 縦スクロール
@@ -599,7 +681,6 @@ namespace CETextBoxControl
                         break;
                     // 描画
                     case CEWin32Api.WM_PAINT:
-                        CECommon.print("WM_PAINT");
                         DrawTextList();
                         break;
                     // 文字入力
@@ -689,7 +770,7 @@ namespace CETextBoxControl
                     break;
                 // 指定位置へスクロール ボックスをドラッグ
                 case CEWin32Api.SB_THUMBTRACK:
-                    nPos = (CEWin32Api.HIWORD(wParam) * m_nVScrollRate) - m_viewTopRow;
+                    nPos = (CEWin32Api.HIWORD(wParam) * m_nVScrollRate) - m_viewTopRowP;
                     break;
                 // スクロール終了
                 case CEWin32Api.SB_ENDSCROLL:
@@ -747,7 +828,7 @@ namespace CETextBoxControl
                     break;
                 // 指定位置へスクロール ボックスをドラッグ
                 case CEWin32Api.SB_THUMBTRACK:
-                    nPos = (CEWin32Api.HIWORD(wParam)) - m_viewLeftColumn;
+                    nPos = (CEWin32Api.HIWORD(wParam)) - m_viewLeftCol;
                     break;
                 // スクロール終了
                 case CEWin32Api.SB_ENDSCROLL:
@@ -1117,11 +1198,11 @@ namespace CETextBoxControl
 
             // 現在位置を論理行として保存
             int colL, rowL;
-            m_doc.PtoLPos(m_caretStrBuf.Y, m_caretStrBuf.X, out rowL, out colL);
+            m_doc.PtoLPos(m_caretPositionP.Y, m_caretPositionP.X, out rowL, out colL);
 
             // 先頭行に移動
-            CursorKeyH(-m_caretStrBuf.X);
-            CursorKeyV(-m_caretStrBuf.Y);
+            CursorKeyH(-m_caretPositionP.X);
+            CursorKeyV(-m_caretPositionP.Y);
 
             // 折返し情報更新
             m_ShareData.m_wrapPositionFlag = b; // 折り返し有
@@ -1137,8 +1218,8 @@ namespace CETextBoxControl
             MoveScrollV(rowP);
 
             // 現在のキャレット位置設定
-            m_caretStrBuf.Y = rowP;
-            m_caretStrBuf.X = 0;
+            m_caretPositionP.Y = rowP;
+            m_caretPositionP.X = 0;
 
             // ビュー更新
             //this.LayoutScrollBar();
@@ -1338,7 +1419,7 @@ namespace CETextBoxControl
 #else
             m_vScrollBar.LargeChange = m_viewDispRow < 0 ? 0 : m_viewDispRow; // 値がマイナスになる場合は0とする。
 #endif
-            m_vScrollBar.Value = m_viewTopRow / nVScrollRate;
+            m_vScrollBar.Value = m_viewTopRowP / nVScrollRate;
 #if false
             if (m_vScrollBar.Maximum < (m_viewTopRow / nVScrollRate))
             {
@@ -1362,14 +1443,14 @@ namespace CETextBoxControl
             // 水平スクロールバー
             m_hScrollBar.Location = new Point(rc.left, rc.bottom - m_hScrollBar.Height);
             m_hScrollBar.Size = new Size(rc.right - m_vScrollBar.Width, m_hScrollBar.Height);
-            m_viewDispColumn = ((rc.right - m_vScrollBar.Width) - m_startColPos) / (m_ShareData.m_charWidthPixel + m_ShareData.m_nColumnSpace);
+            m_viewDispCol = ((rc.right - m_vScrollBar.Width) - m_startColPos) / (m_ShareData.m_charWidthPixel + m_ShareData.m_nColumnSpace);
             m_hScrollBar.Minimum = 0;
             // 半角１、全角２として最長行の文字数を設定
             // 0インデックスなので -1 するが、改行分もあるので +1 となる
             m_hScrollBar.Maximum = m_ShareData.m_wrapPositionPixel / m_ShareData.m_charWidthPixel;
-            m_hScrollBar.LargeChange = m_viewDispColumn < 0 ? 0 : m_viewDispColumn;
-            m_hScrollBar.Value = m_viewLeftColumn;
-            if (m_viewDispColumn > m_ShareData.m_wrapPositionPixel / m_ShareData.m_charWidthPixel)
+            m_hScrollBar.LargeChange = m_viewDispCol < 0 ? 0 : m_viewDispCol;
+            m_hScrollBar.Value = m_viewLeftCol;
+            if (m_viewDispCol > m_ShareData.m_wrapPositionPixel / m_ShareData.m_charWidthPixel)
             {
                 m_hScrollBar.Enabled = false;
             }
@@ -1400,7 +1481,7 @@ namespace CETextBoxControl
             if (m_selectType == RACTANGLE_RANGE_SELECT)
             {
                 // 指定した行(物理)の列(ピクセル)から列(物理・ピクセル)を取得する
-                //int hiddenPixelSize = m_viewLeftColumn * m_charWidthPixel;
+                //int hiddenPixelSize = m_viewLeftCol * m_charWidthPixel;
                 if ( ((m_sRng.Y <= row && row <= m_eRng.Y) || (m_eRng.Y <= row && row <= m_sRng.Y)) &&
                      ((m_sRectIdx    <= col && col < m_eRectIdx)     || (m_eRectIdx    <= col && col < m_sRectIdx    )) )
                 {
@@ -1474,7 +1555,7 @@ namespace CETextBoxControl
             // 表示しようとする文字列から改行文字を削除
             s = m_doc.GetNotLineFeedString(s);
 
-            int screenWidth = m_viewDispColumn * (m_ShareData.m_nColumnSpace + m_ShareData.m_charWidthPixel);
+            int screenWidth = m_viewDispCol * (m_ShareData.m_nColumnSpace + m_ShareData.m_charWidthPixel);
 
             //CEWin32Api.SetTextColor(m_hDrawDC, c);
             //CEWin32Api.SetBkColor(m_hDrawDC, CEConstants.BackColor);
@@ -1482,7 +1563,7 @@ namespace CETextBoxControl
             // 矩形選択行の場合の選択範囲を取得(グローバル変数にセット)
             if ((m_selectType == RACTANGLE_RANGE_SELECT) && (m_sRng.Y <= row) && (row <= m_eRng.Y))
             {
-                m_doc.GetRectMovePosV(row, m_rectCaretColPosPixel, m_curCaretColPosPixel, s, m_viewLeftColumn, out m_sRectIdx, out m_eRectIdx);
+                m_doc.GetRectMovePosV(row, m_rectCaretColPosPixel, m_curCaretColPosPixel, s, m_viewLeftCol, out m_sRectIdx, out m_eRectIdx);
             }
 
             int textWidth = 0;
@@ -1785,6 +1866,65 @@ namespace CETextBoxControl
             CEWin32Api.ExtTextOut(m_hDrawDC, 0, py + m_startRowPos, (uint)CEWin32Api.ETOOptions.ETO_CLIPPED | (uint)CEWin32Api.ETOOptions.ETO_OPAQUE, ref rcClip, s, (uint)s.Length, null);
         }
 
+        // ★★★テストコード★★★
+        /// <summary>
+        /// 指定された移動量分カーソルを移動させる
+        /// </summary>
+        /// <param name="nPosX">水平移動量</param>
+        /// <param name="nPosY">垂直移動量</param>
+        private void MoveCaret(int nPosX, int nPosY)
+        {
+            CECommon.print("キャレット位置              ：列=" + m_caretPositionP.X + "/行=" + m_caretPositionP.Y);
+            CECommon.print("キャレット位置（ピクセル）  ：X=" + m_caretPositionPixel.X + "/Y=" + m_caretPositionPixel.Y);
+            CECommon.print("カーソル移動量              ：X=" + nPosX + "/Y=" + nPosY + ")");
+            CECommon.print("画面上の行数（物理）        ：" + m_viewTopRowP);
+            CECommon.print("画面上の行数（論理）        ：" + m_viewTopRowL);
+            CECommon.print("画面上の行数（論理内の物理）：" + m_viewTopRowLP);
+
+            // -------------------------------------
+            // 移動チェック
+            // 移動不要の場合は何もせず処理終了
+            // -------------------------------------
+
+            // 「１行目で上に移動」または「１行目で１列目で左に移動」しようとした場合、何もせず終了
+            if ((m_caretPositionP.Y + nPosY < 0) || ((m_caretPositionP.Y == 0) && (m_caretPositionP.X + nPosX < 0)))
+            {
+                CECommon.print("「１行目で上に移動」または「１行目で１列目で左に移動」しようとしたので何もせず終了");
+                return;
+            }
+
+            // 「キャレットがEOF位置」かつ「右・下（プラス方向）に移動」しようとした場合、何もせず終了
+            if ((isEofPos(m_caretPositionP.Y, m_caretPositionP.X)) && (nPosX > 0 || nPosY > 0))
+            {
+                CECommon.print("「キャレットがEOF位置」かつ「右・下（プラス方向）に移動」しようとしたので何もせず終了");
+                return;
+            }
+
+            // 「矩形選択」かつ「先頭から左に移動」しようとした場合、何もせず終了
+            if ((m_selectType == RACTANGLE_RANGE_SELECT) &&
+                (m_caretPositionP.X + nPosX < 0))
+            {
+                CECommon.print("「矩形選択」または「先頭から左に移動」しようとしたので何もせず終了");
+                return;
+            }
+
+            // -------------------------------------
+            // 水平パターンチェック
+            // -------------------------------------
+
+            // -------------------------------------
+            // 垂直パターンチェック
+            // -------------------------------------
+
+            // -------------------------------------
+            // スクロール
+            // -------------------------------------
+
+            // -------------------------------------
+            // 無効リージョンの設定
+            // -------------------------------------
+        }
+
         private void MoveScrollV(int nPos)
         {
             MoveScrollV(nPos, -1);
@@ -1799,6 +1939,7 @@ namespace CETextBoxControl
         /// 縦スクロールバーの位置設定
         /// </summary>
         /// <param name="nPos">移動する行数(物理)</param>
+        /// <param name="aLine">全行数（折り返しなし：論理行数／折り返しあり：物理行数）</param>
         private void MoveScrollV(int nPos, int aLine, bool refreshFlag)
         {
             // EOFも含めた行数取得
@@ -1808,24 +1949,24 @@ namespace CETextBoxControl
                 aLine = m_doc.GetLineCountP();
             }
             allLine = aLine;
-            if (nPos > allLine - m_viewDispRow - m_viewTopRow)
+            if (nPos > allLine - m_viewDispRow - m_viewTopRowP)
             {
                 // 一番下の行から更に下にスクロールしようとした場合
-                nPos = allLine - m_viewDispRow - m_viewTopRow;
+                nPos = allLine - m_viewDispRow - m_viewTopRowP;
             }
-            if (nPos < (-1 * m_viewTopRow))
+            if (nPos < (-1 * m_viewTopRowP))
             {
                 // 一番上の行から更に上にスクロールしようとした場合
-                nPos = -1 * m_viewTopRow;
+                nPos = -1 * m_viewTopRowP;
             }
 
             if (nPos != 0)
             {
                 m_vScrollBar.Value/*m_scrollInfoV.nPos*/ += nPos / m_nVScrollRate; // スクロールバーのつまみの位置指定
-                m_viewTopRow += nPos; // 画面に表示される先頭行を指定
-                m_doc.getPosition(m_viewTopRow, out m_viewTopLineL, out m_viewTopLineLP);
+                m_viewTopRowP += nPos; // 画面に表示される先頭行を指定
+                m_doc.getPosition(m_viewTopRowP, out m_viewTopRowL, out m_viewTopRowLP);
 
-                unsafe
+                unsafe // アンマネージコード
                 {
                     CEWin32Api.RECT cRect;
                     int offsetY = -nPos * m_ShareData.m_charHeightPixel;
@@ -1894,28 +2035,28 @@ namespace CETextBoxControl
         private void MoveScrollH(int nPos)
         {
             // 改行コード分 +1 している
-            int len = m_ShareData.m_wrapPositionPixel * m_ShareData.m_charWidthPixel;
-            if (nPos > len - m_viewLeftColumn)
+            int len = m_ShareData.m_wrapPositionPixel + m_ShareData.m_charWidthPixel;
+            if (nPos > len - m_viewLeftCol)
             {
                 // 一番右の行から更に右にスクロールしようとした場合
                 return;
             }
-            if (nPos < (-1 * m_viewLeftColumn))
+            if (nPos < (-1 * m_viewLeftCol))
             {
                 // 一番上の行から更に上にスクロールしようとした場合
-                nPos = -1 * m_viewLeftColumn;
+                nPos = -1 * m_viewLeftCol;
             }
 
             if (nPos != 0)
             {
                 m_hScrollBar.Value/*m_scrollInfoH.nPos*/ += nPos; // スクロールバーのつまみの位置指定
-                m_viewLeftColumn += nPos;
+                m_viewLeftCol += nPos;
                 //CEWin32Api.SetScrollInfo(this.Handle, CEWin32Api.SB_HORZ, ref m_scrollInfoH, true);
 #if false
                 CEWin32Api.ScrollWindowEx(m_Handle, -nPos * (m_ShareData.m_charWidthPixel + m_ShareData.m_nColumnSpace), 0, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, CEWin32Api.SW_ERASE | CEWin32Api.SW_INVALIDATE);
 #else
                 // 再描画
-                this.InvalidateRect(this.Handle, IntPtr.Zero, true);
+                CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
                 //this.Refresh();
 #endif
             }
@@ -1933,7 +2074,7 @@ namespace CETextBoxControl
             // 物理位置からバッファ位置を取得
             int lLine;
             int pLine;
-            m_doc.getPosition(m_caretStrBuf.Y, out lLine, out pLine);
+            m_doc.getPosition(m_caretPositionP.Y, out lLine, out pLine);
 
             // 現在位置(ピクセル)更新
             int m_nowPosX = -1;
@@ -1941,7 +2082,7 @@ namespace CETextBoxControl
             if (m_ShareData.m_cursorMode == 0)
             {
                 // 通常カーソルモード
-                string nowString = m_doc.GetLeftStringP(m_caretStrBuf.Y, m_caretStrBuf.X, lLine, pLine);
+                string nowString = m_doc.GetLeftStringP(m_caretPositionP.Y, m_caretPositionP.X, lLine, pLine);
                 m_nowPosX = m_doc.GetTextPixel(m_ShareData.m_nColumnSpace, nowString);
             }
             else
@@ -1950,33 +2091,33 @@ namespace CETextBoxControl
                 // ★うんこソース★
 
                 // 現在行のテキストの長さを取得
-                string nowStr = m_doc.GetNotLineFeedString(m_doc.GetLineStringP(m_caretStrBuf.Y, lLine, pLine));
+                string nowStr = m_doc.GetNotLineFeedString(m_doc.GetLineStringP(m_caretPositionP.Y, lLine, pLine));
                 int len = nowStr.Length;
 
                 // 改行以降にキャレットがあるか？
                 // 現在位置がテキストの長さより大きい場合は改行以降にキャレットがあるということ
-                if (m_caretStrBuf.X > len)
+                if (m_caretPositionP.X > len)
                 {
                     // 改行以降にキャレットがある
                     // 現在行の先頭からキャレット位置までの長さ（ピクセル）を取得
-                    m_nowPosX = ((m_caretStrBuf.X - len) * m_ShareData.m_charWidthPixel) +                  // 改行位置から現在のキャレットまでのピクセル長 +
+                    m_nowPosX = ((m_caretPositionP.X - len) * m_ShareData.m_charWidthPixel) +                  // 改行位置から現在のキャレットまでのピクセル長 +
                                 m_doc.GetTextPixel(m_ShareData.m_nColumnSpace, nowStr);   // 現在行のピクセル長
                 }
                 else
                 {
                     // 改行以前にキャレットがある（通常カーソルモードと同様の処理）
-                    nowStr = m_doc.GetLeftStringP(m_caretStrBuf.Y, m_caretStrBuf.X, lLine, pLine);
+                    nowStr = m_doc.GetLeftStringP(m_caretPositionP.Y, m_caretPositionP.X, lLine, pLine);
                     m_nowPosX = m_doc.GetTextPixel(m_ShareData.m_nColumnSpace, nowStr);
                 }
             }
-            m_nowPosY = m_caretStrBuf.Y * m_ShareData.m_charHeightPixel;
+            m_nowPosY = m_caretPositionP.Y * m_ShareData.m_charHeightPixel;
 
             // 画面左上の位置(ピクセル)更新
-            int screenPosX = m_viewLeftColumn * (m_ShareData.m_nColumnSpace + m_ShareData.m_charWidthPixel);
-            int screenPosY = m_viewTopRow * m_ShareData.m_charHeightPixel;
+            int screenPosX = m_viewLeftCol * (m_ShareData.m_nColumnSpace + m_ShareData.m_charWidthPixel);
+            int screenPosY = m_viewTopRowP * m_ShareData.m_charHeightPixel;
 
             // 画面の高さ幅(ピクセル)更新
-            int screenWidth = m_viewDispColumn * (m_ShareData.m_nColumnSpace + m_ShareData.m_charWidthPixel);
+            int screenWidth = m_viewDispCol * (m_ShareData.m_nColumnSpace + m_ShareData.m_charWidthPixel);
             int screenHeight = m_viewDispRow * m_ShareData.m_charHeightPixel;
 
             // 表示されている画面外（左または右にキャレットがあるか）チェック
@@ -1997,19 +2138,19 @@ namespace CETextBoxControl
             int cx = m_nowPosX - screenPosX;
             int cy = m_nowPosY - screenPosY;
 
-            int hiddenPixelSize = m_viewLeftColumn * m_ShareData.m_charWidthPixel;
-            m_caretPixel.X = cx + hiddenPixelSize;
-            m_caretPixel.Y = cy;
+            int hiddenPixelSize = m_viewLeftCol * m_ShareData.m_charWidthPixel;
+            m_caretPositionPixel.X = cx + hiddenPixelSize;
+            m_caretPositionPixel.Y = cy;
 
             CEWin32Api.CreateCaret(this.Handle, IntPtr.Zero, 2, m_ShareData.m_charHeightPixel);
             CEWin32Api.SetCaretPos(cx + m_startColPos, cy + m_startRowPos);
             CEWin32Api.ShowCaret(this.Handle);
 
-            // アンダーバー表示
-            this.ShowCaretUnderbar(cy + m_startRowPos);
+            //// アンダーバー表示（横線）
+            //this.ShowCaretUnderbar(cy + m_startRowPos, true);
 
-            // アンダーバー表示
-            this.ShowCaretVerticalLine(cx + m_startColPos);
+            // アンダーバー表示（縦線）
+            //this.ShowCaretVerticalLine(cx + m_startColPos);
 
             // キャレット位置表示
             this.ShowCaretPos(cx + m_startColPos);
@@ -2026,20 +2167,20 @@ namespace CETextBoxControl
 
             // カーソル位置
             SolidBrush backColor = new SolidBrush(Color.FromArgb(255, ColorTranslator.FromHtml(CECommon.ChgRGB(CEConstants.CaretColPosColor).ToString()))); ;
-            //int p = m_doc.GetTextPixel(m_ShareData.m_nColumnSpace, m_doc.GetLeftStringP(m_caretStrBuf.Y, m_caretStrBuf.X)) + m_startColPos;
+            //int p = m_doc.GetTextPixel(m_ShareData.m_nColumnSpace, m_doc.GetLeftStringP(m_caretPositionP.Y, m_caretPositionP.X)) + m_startColPos;
             g.FillRectangle(backColor, pos, 0, m_ShareData.m_charWidthPixel, (int)(m_startRowPos * 0.2));
 
             // Graphicsオブジェクト解放
             g.Dispose();
         }
 
+#if false // 高速化テスト（一時的にオフ）
         /// <summary>
         /// キャレット行（下線）表示
         /// </summary>
         /// <param name="row">アンダーバー出力位置</param>
         private void ShowCaretUnderbar(int pos)
         {
-#if false // 高速化テスト（一時的にオフ）
             // Graphicsオブジェクト生成
             Graphics g = Graphics.FromHdc(m_hDrawDC);
 
@@ -2054,8 +2195,47 @@ namespace CETextBoxControl
 
             // Graphicsオブジェクト解放
             g.Dispose();
-#endif
         }
+#else
+
+        private void ShowCaretUnderbar(int pos, bool onoff)
+        {
+            Color penColor;
+            IntPtr hdc = CEWin32Api.GetDC(this.Handle);
+            if (onoff)
+            {
+                // on
+                penColor = Color.Blue;
+            }
+            else
+            {
+                // off
+                penColor = Color.White;
+            }
+            IntPtr hPen = CEWin32Api.CreatePen(CEWin32Api.PenStyle.PS_SOLID, 0, (uint)ColorTranslator.ToWin32(penColor));
+            IntPtr hPenOld = CEWin32Api.SelectObject(hdc, hPen);
+
+            // クライアント領域のサイズ取得
+            CEWin32Api.RECT rc;
+            CEWin32Api.GetClientRect(this.Handle, out rc);
+
+            CEWin32Api.MoveToEx( 
+			    hdc,
+			    0,
+                pos + m_ShareData.m_charHeightPixel, 
+			    IntPtr.Zero
+		    );
+		    CEWin32Api.LineTo( 
+			    hdc,
+                rc.right,
+                pos + m_ShareData.m_charHeightPixel
+            );
+		    CEWin32Api.SelectObject( hdc, hPenOld );
+            CEWin32Api.DeleteObject( hPen );
+            CEWin32Api.ReleaseDC(this.Handle, hdc );
+		    hdc = IntPtr.Zero;
+        }
+#endif
 
         /// <summary>
         /// キャレット行の縦線表示
@@ -2063,7 +2243,7 @@ namespace CETextBoxControl
         /// <param name="pos"></param>
         private void ShowCaretVerticalLine(int pos)
         {
-#if false // 高速化テスト（一時的にオフ）
+#if true // 高速化テスト（一時的にオフ）
             // Graphicsオブジェクト生成
             Graphics g = Graphics.FromHdc(m_hDrawDC);
 
@@ -2103,7 +2283,7 @@ namespace CETextBoxControl
             int clip_h = m_rulerHeightPixel;
             Rectangle rctgl = new Rectangle(clip_x, clip_y, clip_w, clip_h);
             IntPtr ptrRect = CECommon.RectangleToIntPtr(rctgl); // RectangleからIntPtrへ変換
-            CEWin32Api.InvalidateRect(this.Handle, ptrRect, true);
+            CEWin32Api.InvalidateRect(this.Handle, ptrRect, false);
 
             // Graphicsオブジェクト生成
             Graphics g = Graphics.FromHdc(m_hDrawDC);
@@ -2117,9 +2297,9 @@ namespace CETextBoxControl
             int x, y;
             //int baseLinePos = m_ShareData.m_charHeightPixel;
             //int baseLinePos = (int)(double)(m_ShareData.m_charHeightPixel * 0.9);
-            for (int lineIdx = m_viewLeftColumn; lineIdx < m_viewLeftColumn + m_viewDispColumn; lineIdx++)
+            for (int lineIdx = m_viewLeftCol; lineIdx < m_viewLeftCol + m_viewDispCol; lineIdx++)
             {
-                x = (lineIdx - m_viewLeftColumn) * m_ShareData.m_charWidthPixel + m_startColPos;
+                x = (lineIdx - m_viewLeftCol) * m_ShareData.m_charWidthPixel + m_startColPos;
                 if (0 == (lineIdx % 10))
                 {
                     y = 0;
@@ -2202,26 +2382,26 @@ namespace CETextBoxControl
         private void GetCaretPositionV(/* int nVKey,*/ int nPos)
         {
             // 1行目で上を押されたときは何もしない。
-            if (m_caretStrBuf.Y + nPos < 0)
+            if (m_caretPositionP.Y + nPos < 0)
             {
                 return;
             }
 
-            // 移動後の位置が最終行を超える場合は最終行まで移動
+            // 移動後の位置が最終行を超える場合は最終行に移動
             int line;
             if (m_ShareData.m_wrapPositionFlag)
             {
-                // 折返しなし
+                // 折返しあり
                 line = m_doc.GetLineCountP();
             }
             else
             {
-                // 折返しあり
+                // 折返しなし
                 line = m_doc.GetLineCountL();
             }
-            if (m_caretStrBuf.Y + nPos >= line)
+            if (m_caretPositionP.Y + nPos >= line)
             {
-                nPos = line - m_caretStrBuf.Y - 1;
+                nPos = line - m_caretPositionP.Y - 1;
             }
 
             // 範囲選択から未選択になったか確認するために確保しておく
@@ -2233,18 +2413,18 @@ namespace CETextBoxControl
             // 範囲選択→範囲未選択に移行した場合、選択状態をクリアする
             if (CurrentSelectStatus != m_selectType && m_selectType == NONE_RANGE_SELECT && m_scrollAmountNumV == 0)
             {
-                // 全画面が対象
-                this.InvalidateRect(this.Handle, IntPtr.Zero, true);
+                // 全画面更新対象
+                CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
                 // 即更新
                 this.Update();
             }
 
             // キャレットの行を設定
-            m_caretStrBuf.Y += nPos;
-
-            // 画面の一番上と下で上下ボタンが押されたとき
-            if ((m_caretStrBuf.Y < m_viewTopRow) ||
-                (m_caretStrBuf.Y >= m_viewTopRow + m_viewDispRow))
+            m_caretPositionP.Y += nPos;
+#if false // この下にある DispPosMove メソッドで画面の一番上と下で上下ボタンが押された時の処理をしているので不要かと
+            // 画面の一番上と下で上下ボタンが押されたとき（スクロール発生）
+            if ((m_caretPositionP.Y < m_viewTopRow) ||
+                (m_caretPositionP.Y >= m_viewTopRow + m_viewDispRow))
             {
                 m_scrollAmountNumV = nPos + 1; // 1行移動する場合は2行分
                 // 上または下移動
@@ -2256,13 +2436,14 @@ namespace CETextBoxControl
             {
                 m_caretPixel.Y = m_caretPixel.Y + (m_ShareData.m_charHeightPixel * nPos);
             }
+#endif
 
             int posX;
             int idx;
             // 指定した行(物理)の列(ピクセル)から列(物理・ピクセル)を取得する
-            GetMovePosV(m_caretStrBuf.Y, m_curCaretColPosPixel, out posX, out idx);
-            m_caretStrBuf.X = idx;    // キャレットの配列位置(列)
-            m_caretPixel.X = posX;      // キャレットの座標(X)
+            GetMovePosV(m_caretPositionP.Y, m_curCaretColPosPixel, out posX, out idx);
+            m_caretPositionP.X = idx;    // キャレットの配列位置(列)
+            m_caretPositionPixel.X = posX;      // キャレットの座標(X)
 
             // 選択範囲の終了位置取得
             EndRange();
@@ -2273,21 +2454,23 @@ namespace CETextBoxControl
             // 画面外表示位置移動
             DispPosMove();
 
-#if true // 高速化テスト
-            // キャレット描画 ★★★
-            this.ShowCaret();
-#else
-            CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
-#endif
-            // 再描画
-            //this.Refresh();
+            //// アンダーバー表示（横線）
+            //this.ShowCaretUnderbar(m_prevCaretPixel.Y + m_startRowPos, false);
 
-            // 高速化対応
+            //// キャレット描画 ★★★
+            this.ShowCaret();
+
+            //// アンダーバー表示（横線）
+            //this.ShowCaretUnderbar(m_caretPositionPixel.Y + m_startRowPos, true);
+
+            //// キャレット位置保存
+            //m_prevCaretPixel = m_caretPositionPixel;
+
             // 【選択状態】かつ【上下スクロールでない】の場合は、全画面再描画する（遅くなっちゃうけど）
             if ((m_selectType != NONE_RANGE_SELECT && m_scrollAmountNumV == 0))
             {
                 // 再描画
-                this.InvalidateRect(this.Handle, IntPtr.Zero, true);
+                CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
             }
         }
 
@@ -2346,7 +2529,7 @@ namespace CETextBoxControl
             }
 
             // 画面に表示されていないサイズ（左側）
-            int hiddenPixelSize = m_viewLeftColumn * m_ShareData.m_charWidthPixel;
+            int hiddenPixelSize = m_viewLeftCol * m_ShareData.m_charWidthPixel;
             //posX -= hiddenPixelSize;
             //colPixel += hiddenPixelSize;
 
@@ -2404,12 +2587,12 @@ namespace CETextBoxControl
             string patterNumber = "1234567890";
 
             // 現在位置の文字を取得
-            string s = m_doc.GetLineStringP(m_caretStrBuf.Y);
+            string s = m_doc.GetLineStringP(m_caretPositionP.Y);
 
             if ( nPos > 0)
             {
                 // 右探す
-                int curIdx = m_caretStrBuf.X;
+                int curIdx = m_caretPositionP.X;
                 for (amountMove = 0; curIdx < s.Length; amountMove++, curIdx++)
                 {
                     if (((s[curIdx].ToString() == "\t")                            && (s[curIdx + 1].ToString() == "\t")) ||                            // タブ
@@ -2433,7 +2616,7 @@ namespace CETextBoxControl
             else if (nPos < 0)
             {
                 // 左探す
-                int curIdx = m_caretStrBuf.X - 1; // １つ左から検索しだす。現在地から検索しだすと常に０になる場合があるため。
+                int curIdx = m_caretPositionP.X - 1; // １つ左から検索しだす。現在地から検索しだすと常に０になる場合があるため。
                 for (amountMove = 0; curIdx > 0; amountMove--, curIdx--)
                 {
                     if (((s[curIdx].ToString() == "\t")                            && (s[curIdx - 1].ToString() == "\t")) ||                            // タブ
@@ -2471,13 +2654,13 @@ namespace CETextBoxControl
             }
 
             // 矩形選択かつ、先頭から左に移動しようとした場合は何もしない
-            if (m_selectType == RACTANGLE_RANGE_SELECT && m_caretStrBuf.X == 0 && nPos < 0)
+            if (m_selectType == RACTANGLE_RANGE_SELECT && m_caretPositionP.X == 0 && nPos < 0)
             {
                 return;
             }
 
             // EOF位置で右（プラス方向）に移動しようとした場合は何もしない
-            if (isEofPos(m_caretStrBuf.Y, m_caretStrBuf.X) && nPos > 0)
+            if (isEofPos(m_caretPositionP.Y, m_caretPositionP.X) && nPos > 0)
             {
                 return;
             }
@@ -2488,24 +2671,24 @@ namespace CETextBoxControl
             // 移動先の物理位置を取得
             int aRow = -1;
             int aCol = -1;
-            GetPositionH(m_caretStrBuf.Y, m_caretStrBuf.X, nPos, out aRow, out aCol);
+            GetPositionH(m_caretPositionP.Y, m_caretPositionP.X, nPos, out aRow, out aCol);
 
             // 移動量が0の場合は何もしない
-            if (m_caretStrBuf.Y == aRow && m_caretStrBuf.X == aCol)
+            if (m_caretPositionP.Y == aRow && m_caretPositionP.X == aCol)
             {
                 return;
             }
 
             // 移動先を保存
-            m_caretStrBuf.Y = aRow;
-            m_caretStrBuf.X = aCol;
-            m_caretPixel.Y = aRow * m_ShareData.m_charHeightPixel;
+            m_caretPositionP.Y = aRow;
+            m_caretPositionP.X = aCol;
+            m_caretPositionPixel.Y = aRow * m_ShareData.m_charHeightPixel;
             
             int lLine;
             int pLine;
             m_doc.getPosition(aRow, out lLine, out pLine);
 
-            int hiddenPixelSize = m_viewLeftColumn * m_ShareData.m_charWidthPixel;
+            int hiddenPixelSize = m_viewLeftCol * m_ShareData.m_charWidthPixel;
 
 #if false
             if (m_cursorMode == 0)
@@ -2533,8 +2716,8 @@ namespace CETextBoxControl
                 string str1 = fStr.Substring(0, len);
                 m_caretPixel.X = m_doc.GetTextPixel(m_nColumnSpace, str1);
 #endif
-                m_caretPixel.X = m_doc.GetTextPixel(m_ShareData.m_nColumnSpace, fStr);
-                m_caretPixel.X += (aCol - len) * m_ShareData.m_charWidthPixel;
+                m_caretPositionPixel.X = m_doc.GetTextPixel(m_ShareData.m_nColumnSpace, fStr);
+                m_caretPositionPixel.X += (aCol - len) * m_ShareData.m_charWidthPixel;
             }
             else
             {
@@ -2542,7 +2725,7 @@ namespace CETextBoxControl
                 string str = m_doc.GetLineStringP(aRow, lLine, pLine).Substring(0, aCol);
 
                 // 指定した文字列のピクセル数を取得
-                m_caretPixel.X = m_doc.GetTextPixel(m_ShareData.m_nColumnSpace, str);
+                m_caretPositionPixel.X = m_doc.GetTextPixel(m_ShareData.m_nColumnSpace, str);
             }
 #if false
             }
@@ -2552,7 +2735,7 @@ namespace CETextBoxControl
             EndRange();
 
             // 現在の桁（ピクセル）を基準値として保存
-            m_curCaretColPosPixel = m_caretPixel.X;
+            m_curCaretColPosPixel = m_caretPositionPixel.X;
 
             // スクロールバー再配置
             LayoutScrollBar();
@@ -2561,8 +2744,19 @@ namespace CETextBoxControl
             DispPosMove();
 
             // 再描画
-            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
-            //this.Refresh();
+            CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+
+            //// アンダーバー表示（横線）
+            //this.ShowCaretUnderbar(m_prevCaretPixel.Y + m_startRowPos, false);
+
+            //// キャレット描画 ★★★
+            this.ShowCaret();
+
+            //// アンダーバー表示（横線）
+            //this.ShowCaretUnderbar(m_caretPositionPixel.Y + m_startRowPos, true);
+
+            //// キャレット位置保存
+            //m_prevCaretPixel = m_caretPositionPixel;
         }
 
         /// <summary>
@@ -2577,15 +2771,15 @@ namespace CETextBoxControl
             // 画面外（上下）
             //////////////////////////////////
 
-            if (m_caretStrBuf.Y < m_viewTopRow)
+            if (m_caretPositionP.Y < m_viewTopRowP)
             {
                 // キャレットが画面より上にある
-                MoveScrollV(m_caretStrBuf.Y - m_viewTopRow);
+                MoveScrollV(m_caretPositionP.Y - m_viewTopRowP);
             }
-            else if (m_caretStrBuf.Y > m_viewTopRow + m_viewDispRow - 1)
+            else if (m_caretPositionP.Y > m_viewTopRowP + m_viewDispRow - 1)
             {
                 // キャレットが画面より下にある
-                MoveScrollV(m_caretStrBuf.Y - (m_viewTopRow + m_viewDispRow - 1));
+                MoveScrollV(m_caretPositionP.Y - (m_viewTopRowP + m_viewDispRow - 1));
             }
 
             //////////////////////////////////
@@ -2594,26 +2788,26 @@ namespace CETextBoxControl
 
             int lLine;
             int pLine;
-            m_doc.getPosition(m_caretStrBuf.Y, out lLine, out pLine);
+            m_doc.getPosition(m_caretPositionP.Y, out lLine, out pLine);
 
-            int columnStringLen = m_doc.GetColumnLength(m_doc.GetLeftStringP(m_caretStrBuf.Y, m_caretStrBuf.X, lLine, pLine));
+            int columnStringLen = m_doc.GetColumnLength(m_doc.GetLeftStringP(m_caretPositionP.Y, m_caretPositionP.X, lLine, pLine));
 
             if (m_ShareData.m_cursorMode == 1)
             {
                 // フリーカーソルモード
 
                 // 現在行のテキストの長さを取得（全角：２、半角：１）
-                string nowStr = m_doc.GetNotLineFeedString(m_doc.GetLineStringP(m_caretStrBuf.Y, lLine, pLine));
+                string nowStr = m_doc.GetNotLineFeedString(m_doc.GetLineStringP(m_caretPositionP.Y, lLine, pLine));
                 int len = nowStr.Length;    // 文字数取得
 
                 // 改行以降にキャレットがあるか？
                 // 現在位置がテキストの長さより大きい場合は改行以降にキャレットがあるということ
-                if (m_caretStrBuf.X > len)
+                if (m_caretPositionP.X > len)
                 {
                     // 改行以降にキャレットがある
 
                     // キャレット位置までの長さ（全角：２、半角：１）
-                    columnStringLen += m_caretStrBuf.X - len;
+                    columnStringLen += m_caretPositionP.X - len;
                 }
             }
 
@@ -2622,14 +2816,14 @@ namespace CETextBoxControl
             //////////////////////////////////
 
             // 画面より左にあるか
-            if (columnStringLen - m_ShareData.m_scrollColSpage < m_viewLeftColumn)
+            if (columnStringLen - m_ShareData.m_scrollColSpage < m_viewLeftCol)
             {
-                MoveScrollH((columnStringLen - m_ShareData.m_scrollColSpage) - m_viewLeftColumn);
+                MoveScrollH((columnStringLen - m_ShareData.m_scrollColSpage) - m_viewLeftCol);
             }
             // 画面より右にあるか
-            else if (columnStringLen + m_ShareData.m_scrollColSpage > m_viewLeftColumn + m_viewDispColumn)
+            else if (columnStringLen + m_ShareData.m_scrollColSpage > m_viewLeftCol + m_viewDispCol)
             {
-                MoveScrollH((columnStringLen + m_ShareData.m_scrollColSpage) - (m_viewLeftColumn + m_viewDispColumn));
+                MoveScrollH((columnStringLen + m_ShareData.m_scrollColSpage) - (m_viewLeftCol + m_viewDispCol));
             }
         }
 
@@ -2645,18 +2839,18 @@ namespace CETextBoxControl
             // 画面外（上下）
             //////////////////////////////////
 
-            if (m_caretStrBuf.Y < m_viewTopRow)
+            if (m_caretPositionP.Y < m_viewTopRowP)
             {
                 // キャレットが画面より上にある
-                MoveScrollV(m_caretStrBuf.Y - m_viewTopRow);
-                m_caretPixel.Y = 0;
+                MoveScrollV(m_caretPositionP.Y - m_viewTopRowP);
+                m_caretPositionPixel.Y = 0;
             }
-            else if (m_caretStrBuf.Y > m_viewTopRow + m_viewDispRow - 1)
+            else if (m_caretPositionP.Y > m_viewTopRowP + m_viewDispRow - 1)
             {
                 // キャレットが画面より下にある
-                MoveScrollV(m_caretStrBuf.Y - (m_viewTopRow + m_viewDispRow - 1));
-                m_caretPixel.Y = (m_viewDispRow - 1) * m_ShareData.m_charHeightPixel;
-                m_caretStrBuf.Y = m_doc.GetLineCountP() - 1;
+                MoveScrollV(m_caretPositionP.Y - (m_viewTopRowP + m_viewDispRow - 1));
+                m_caretPositionPixel.Y = (m_viewDispRow - 1) * m_ShareData.m_charHeightPixel;
+                m_caretPositionP.Y = m_doc.GetLineCountP() - 1;
             }
 
             //////////////////////////////////
@@ -2665,26 +2859,26 @@ namespace CETextBoxControl
 
             int lLine;
             int pLine;
-            m_doc.getPosition(m_caretStrBuf.Y, out lLine, out pLine);
+            m_doc.getPosition(m_caretPositionP.Y, out lLine, out pLine);
 
-            int columnStringLen = m_doc.GetColumnLength(m_doc.GetLeftStringP(m_caretStrBuf.Y, m_caretStrBuf.X, lLine, pLine));
+            int columnStringLen = m_doc.GetColumnLength(m_doc.GetLeftStringP(m_caretPositionP.Y, m_caretPositionP.X, lLine, pLine));
 
             if (m_ShareData.m_cursorMode == 1)
             {
                 // フリーカーソルモード
 
                 // 現在行のテキストの長さを取得
-                string nowStr = m_doc.GetNotLineFeedString(m_doc.GetLineStringP(m_caretStrBuf.Y, lLine, pLine));
+                string nowStr = m_doc.GetNotLineFeedString(m_doc.GetLineStringP(m_caretPositionP.Y, lLine, pLine));
                 int len = nowStr.Length;    // 文字数取得
 
                 // 改行以降にキャレットがあるか？
                 // 現在位置がテキストの長さより大きい場合は改行以降にキャレットがあるということ
-                if (m_caretStrBuf.X > len)
+                if (m_caretPositionP.X > len)
                 {
                     // 改行以降にキャレットがある
                     //int bbb = this.GetColumnLength(nowStr);
-                    //aaa = bbb + (m_caretStrBuf.X - len);
-                    columnStringLen = m_caretStrBuf.X;
+                    //aaa = bbb + (m_caretPositionP.X - len);
+                    columnStringLen = m_caretPositionP.X;
                 }
             }
 
@@ -2692,17 +2886,17 @@ namespace CETextBoxControl
             // 画面外（左右）
             //////////////////////////////////
 
-            if (columnStringLen < m_viewLeftColumn)
+            if (columnStringLen < m_viewLeftCol)
             {
                 // 画面より左にある
-                MoveScrollH(columnStringLen - m_viewLeftColumn);
-                m_caretPixel.X = 0;
+                MoveScrollH(columnStringLen - m_viewLeftCol);
+                m_caretPositionPixel.X = 0;
             }
-            else if (columnStringLen > m_viewLeftColumn + m_viewDispColumn)
+            else if (columnStringLen > m_viewLeftCol + m_viewDispCol)
             {
                 // 画面より右にある
-                MoveScrollH(columnStringLen - (m_viewLeftColumn + m_viewDispColumn));
-                m_caretPixel.X = columnStringLen * (m_ShareData.m_charWidthPixel + m_ShareData.m_nColumnSpace);
+                MoveScrollH(columnStringLen - (m_viewLeftCol + m_viewDispCol));
+                m_caretPositionPixel.X = columnStringLen * (m_ShareData.m_charWidthPixel + m_ShareData.m_nColumnSpace);
             }
         }
 
@@ -2749,6 +2943,7 @@ namespace CETextBoxControl
         private void CursorKeyV(int nPos)
         {
             GetCaretPositionV(nPos);
+            MoveCaret(0, nPos); // ★★★テストコード★★★
         }
 
         /// <summary>
@@ -2767,6 +2962,7 @@ namespace CETextBoxControl
             }
 
             GetCaretPositionH(nPos);
+            MoveCaret(nPos, 0); // ★★★テストコード★★★
         }
 
         /// <summary>
@@ -2780,8 +2976,8 @@ namespace CETextBoxControl
             {
                 // Ctrl+Home
 
-                CursorKeyH(-m_caretStrBuf.X);
-                CursorKeyV(-m_caretStrBuf.Y);
+                CursorKeyH(-m_caretPositionP.X);
+                CursorKeyV(-m_caretPositionP.Y);
             }
             else
             {
@@ -2790,16 +2986,16 @@ namespace CETextBoxControl
                 if (m_ShareData.m_cursorMode == 0)
                 {
                     // 通常カーソルモード
-                    int mPos = m_doc.GetLeftStringP(m_caretStrBuf.Y, m_caretStrBuf.X).Length;
+                    int mPos = m_doc.GetLeftStringP(m_caretPositionP.Y, m_caretPositionP.X).Length;
                     CursorKeyH(-mPos);
                 }
                 else
                 {
                     // フリーカーソルモード
-                    m_caretPixel.X = 0;
-                    m_caretStrBuf.X = 0;
+                    m_caretPositionPixel.X = 0;
+                    m_caretPositionP.X = 0;
                     // 現在の桁（ピクセル）を基準値として保存
-                    m_curCaretColPosPixel = m_caretPixel.X;
+                    m_curCaretColPosPixel = m_caretPositionPixel.X;
                 }
                 // 現在の桁（ピクセル）を基準値として保存
                 // 上記どのような結果であろうとホームが押されたので先頭へ
@@ -2813,7 +3009,7 @@ namespace CETextBoxControl
             DispPosMove();
 
             // 再描画
-            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
             //this.Refresh();
         }
 
@@ -2827,15 +3023,15 @@ namespace CETextBoxControl
 
             int lLine;
             int pLine;
-            m_doc.getPosition(m_caretStrBuf.Y, out lLine, out pLine);
+            m_doc.getPosition(m_caretPositionP.Y, out lLine, out pLine);
 
             if ((KeyState[CEWin32Api.VK_CTRL] & 0x80) != 0)
             {
                 // Ctrl+End
 
-                CursorKeyH(-m_caretStrBuf.X);
-                CursorKeyV(m_doc.GetLineCountP() - (m_caretStrBuf.Y + 1));
-                CursorKeyH(m_doc.GetLineStringP(m_caretStrBuf.Y, lLine, pLine).Length);
+                CursorKeyH(-m_caretPositionP.X);
+                CursorKeyV(m_doc.GetLineCountP() - (m_caretPositionP.Y + 1));
+                CursorKeyH(m_doc.GetLineStringP(m_caretPositionP.Y, lLine, pLine).Length);
             }
             else
             {
@@ -2844,17 +3040,17 @@ namespace CETextBoxControl
                 if (m_ShareData.m_cursorMode == 1)
                 {
                     // フリーカーソルの場合、カーソルを先頭に移動してから通常カーソルのEnd処理を実行
-                    m_caretPixel.X = 0;
-                    m_caretStrBuf.X = 0;
+                    m_caretPositionPixel.X = 0;
+                    m_caretPositionP.X = 0;
                 }
 
-                int len = m_doc.GetNotLineFeedStringP(m_caretStrBuf.Y, lLine, pLine).Length;
+                int len = m_doc.GetNotLineFeedStringP(m_caretPositionP.Y, lLine, pLine).Length;
                 // 折り返しの場合は1文字手前
-                if (isWrapPos(m_caretStrBuf.Y, lLine, pLine))
+                if (isWrapPos(m_caretPositionP.Y, lLine, pLine))
                 {
                     len--;
                 }
-                int cLen = m_doc.GetLeftStringP(m_caretStrBuf.Y, m_caretStrBuf.X, lLine, pLine).Length;
+                int cLen = m_doc.GetLeftStringP(m_caretPositionP.Y, m_caretPositionP.X, lLine, pLine).Length;
                 CursorKeyH(len - cLen);
             }
 
@@ -2865,7 +3061,7 @@ namespace CETextBoxControl
             DispPosMove();
 
             // 再描画
-            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
             //this.Refresh();
         }
 
@@ -2887,11 +3083,11 @@ namespace CETextBoxControl
             /*****************************************************/
             /* Undo / Redo アンドゥ リドゥ                       */
             /*****************************************************/
-            UndoRedoOpe.PreUndoRedo(m_caretStrBuf, m_selectType, this);
+            UndoRedoOpe.PreUndoRedo(m_caretPositionP, m_selectType, this);
 
             // キャレット位置に改行マークを挿入する
             int mx = 0; // 横移動量
-            MultiLineInsertText(m_caretStrBuf.Y, m_caretStrBuf.X, CEConstants.LineFeed, ref mx);
+            MultiLineInsertText(m_caretPositionP.Y, m_caretPositionP.X, CEConstants.LineFeed, ref mx);
 
             // 横移動
             GetCaretPositionH(mx);
@@ -2899,7 +3095,7 @@ namespace CETextBoxControl
             /*****************************************************/
             /* Undo / Redo アンドゥ リドゥ                       */
             /*****************************************************/
-            UndoRedoOpe.ProUndoRedo(m_caretStrBuf, UndoRedoCode.UR_INSERT, CEConstants.LineFeed, this);
+            UndoRedoOpe.ProUndoRedo(m_caretPositionP, UndoRedoCode.UR_INSERT, CEConstants.LineFeed, this);
 
             // スクロールバー再配置
             LayoutScrollBar();
@@ -2908,7 +3104,7 @@ namespace CETextBoxControl
             DispPosMove();
 
             // 再描画
-            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
             //this.Refresh();
 
             // カーソルモードを元に戻す
@@ -2928,13 +3124,13 @@ namespace CETextBoxControl
             else
             {
                 // 行列が(0,0)の場合は何もしない。
-                if (m_caretStrBuf.Y == 0 && m_caretStrBuf.X == 0)
+                if (m_caretPositionP.Y == 0 && m_caretPositionP.X == 0)
                 {
                     return;
                 }
 
                 // キャレット位置確認
-                if (!IsCaretRangeP(m_caretStrBuf.Y, m_caretStrBuf.X))
+                if (!IsCaretRangeP(m_caretPositionP.Y, m_caretPositionP.X))
                 {
                     // キャレット範囲外
 
@@ -2955,15 +3151,15 @@ namespace CETextBoxControl
                     /*****************************************************/
                     /* Undo / Redo アンドゥ リドゥ                       */
                     /*****************************************************/
-                    UndoRedoOpe.PreUndoRedo(m_caretStrBuf, m_selectType, this);
+                    UndoRedoOpe.PreUndoRedo(m_caretPositionP, m_selectType, this);
 
                     // キャレット位置の文字を削除
-                    string delStr = m_doc.DeleteCharP(m_caretStrBuf.Y, m_caretStrBuf.X);
+                    string delStr = m_doc.DeleteCharP(m_caretPositionP.Y, m_caretPositionP.X);
 
                     /*****************************************************/
                     /* Undo / Redo アンドゥ リドゥ                       */
                     /*****************************************************/
-                    UndoRedoOpe.ProUndoRedo(m_caretStrBuf, UndoRedoCode.UR_DELETE, delStr, this);
+                    UndoRedoOpe.ProUndoRedo(m_caretPositionP, UndoRedoCode.UR_DELETE, delStr, this);
 
                     // カーソルモードを元に戻す
                     m_ShareData.m_cursorMode = bkCursorMode;
@@ -2977,7 +3173,7 @@ namespace CETextBoxControl
             DispPosMove();
 
             // 再描画
-            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
             //this.Refresh();
         }
 
@@ -2994,7 +3190,7 @@ namespace CETextBoxControl
             else
             {
                 // キャレット位置が範囲外またはEOFの場合、何もしない
-                if ((!IsCaretRangeP(m_caretStrBuf.Y, m_caretStrBuf.X)) || (isEofPos(m_caretStrBuf.Y, m_caretStrBuf.X)))
+                if ((!IsCaretRangeP(m_caretPositionP.Y, m_caretPositionP.X)) || (isEofPos(m_caretPositionP.Y, m_caretPositionP.X)))
                 {
                     return;
                 }
@@ -3002,15 +3198,15 @@ namespace CETextBoxControl
                 /*****************************************************/
                 /* Undo / Redo アンドゥ リドゥ                       */
                 /*****************************************************/
-                UndoRedoOpe.PreUndoRedo(m_caretStrBuf, m_selectType, this);
+                UndoRedoOpe.PreUndoRedo(m_caretPositionP, m_selectType, this);
 
                 // 現在位置の文字削除
-                string delStr = m_doc.DeleteCharP(m_caretStrBuf.Y, m_caretStrBuf.X);
+                string delStr = m_doc.DeleteCharP(m_caretPositionP.Y, m_caretPositionP.X);
 
                 /*****************************************************/
                 /* Undo / Redo アンドゥ リドゥ                       */
                 /*****************************************************/
-                UndoRedoOpe.ProUndoRedo(m_caretStrBuf, UndoRedoCode.UR_DELETE, delStr, this);
+                UndoRedoOpe.ProUndoRedo(m_caretPositionP, UndoRedoCode.UR_DELETE, delStr, this);
             }
 
             // スクロールバー再配置
@@ -3020,7 +3216,7 @@ namespace CETextBoxControl
             DispPosMove();
 
             // 再描画
-            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
             //this.Refresh();
         }
 
@@ -3036,7 +3232,7 @@ namespace CETextBoxControl
             m_searchType = NOT_SEARCH_TYPE;
 
             // 再描画
-            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
             //this.Refresh();
             //DrawTextList();
         }
@@ -3063,7 +3259,7 @@ namespace CETextBoxControl
             /*****************************************************/
             /* Undo / Redo アンドゥ リドゥ                       */
             /*****************************************************/
-            UndoRedoOpe.PreUndoRedo(m_caretStrBuf, m_selectType, this);
+            UndoRedoOpe.PreUndoRedo(m_caretPositionP, m_selectType, this);
 
             //int nVKey = (int)wParam;
             char c = Convert.ToChar(nVKey);
@@ -3074,8 +3270,8 @@ namespace CETextBoxControl
             if (newChar != "\r" && newChar != "\n" && newChar != "\b")
             {
 #endif
-                m_doc.InsertLineTextP(m_caretStrBuf.Y/*m_caretStrBufRow*/, m_caretStrBuf.X/*m_caretStrBufColumn*/, newChar);
-                this.InvalidateRect(this.Handle, IntPtr.Zero, false); // WM_PAINTが実行される。
+                m_doc.InsertLineTextP(m_caretPositionP.Y/*m_caretStrBufRow*/, m_caretPositionP.X/*m_caretStrBufColumn*/, newChar);
+                CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, false); // WM_PAINTが実行される。
                 //this.Refresh();
                 //this.SetTextData();
 #if false
@@ -3089,7 +3285,7 @@ namespace CETextBoxControl
                 /*****************************************************/
                 /* Undo / Redo アンドゥ リドゥ                       */
                 /*****************************************************/
-                UndoRedoOpe.ProUndoRedo(m_caretStrBuf, UndoRedoCode.UR_INSERT, newChar, this);
+                UndoRedoOpe.ProUndoRedo(m_caretPositionP, UndoRedoCode.UR_INSERT, newChar, this);
 
                 // スクロールバー再配置
                 LayoutScrollBar();
@@ -3098,7 +3294,7 @@ namespace CETextBoxControl
                 DispPosMove();
 
                 // 再描画
-                this.InvalidateRect(this.Handle, IntPtr.Zero, true);
+                CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
                 //this.Refresh();
 #if false
             }
@@ -3110,11 +3306,13 @@ namespace CETextBoxControl
         /// </summary>
         private void DrawTextList()
         {
-            CECommon.print("DrawTextLine();");
             try
             {
                 CEWin32Api.RECT rec;
                 CEWin32Api.PAINTSTRUCT ps;
+
+                //CEWin32Api.RectVisible(m_hDrawDC, out rec);
+                //CECommon.print("top:" + rec.top + "/bottom:" + rec.bottom + "/right:" + rec.right + "/left:" + rec.left);
 
                 // 描画領域設定
                 CEWin32Api.GetClientRect(this.Handle, out rec);
@@ -3169,8 +3367,8 @@ namespace CETextBoxControl
                 if (CaretPos != null)
                 {
                     CaretPositionEventArgs e = new CaretPositionEventArgs();
-                    e.x = m_doc.GetColumnLength(m_doc.GetLeftStringP(m_caretStrBuf.Y, m_caretStrBuf.X));
-                    e.y = m_caretStrBuf.Y;
+                    e.x = m_doc.GetColumnLength(m_doc.GetLeftStringP(m_caretPositionP.Y, m_caretPositionP.X));
+                    e.y = m_caretPositionP.Y;
                     e.encode = m_readEncode.EncodingName;
                     CaretPos(this, e);
                 }
@@ -3200,15 +3398,15 @@ namespace CETextBoxControl
                 int lineCntP = m_doc.GetLineCountP();
                 int lLine = -1;
                 int pLine = -1;
-                //getPosition(m_viewTopRow, out lLine, out pLine);
-                lLine = m_viewTopLineL;
-                pLine = m_viewTopLineLP;
+                //getPosition(m_viewTopRowP, out lLine, out pLine);
+                lLine = m_viewTopRowL;
+                pLine = m_viewTopRowLP;
                 string lineNumStr = "";
-                // 画面表示幅をピクセル単位で取得
-                m_screenWidth = m_viewDispColumn * (m_ShareData.m_nColumnSpace + m_ShareData.m_charWidthPixel);
+                // 画面表示幅をピクセル単位で取得（未使用）
+                //m_screenWidthPixel = m_viewDispCol * (m_ShareData.m_nColumnSpace + m_ShareData.m_charWidthPixel);
                 for (int index = 0; index < m_viewDispRow + 1; index++)
                 {
-                    int row = index + m_viewTopRow;
+                    int row = index + m_viewTopRowP;
                     if (row < lineCntP)
                     {
                         str = getNextPositionString(ref lLine, ref pLine, out wrap);
@@ -3222,7 +3420,7 @@ namespace CETextBoxControl
                             m_lLineNum.Add("");
                             lineNumStr = "";
                         }
-                        px = m_viewLeftColumn * (m_ShareData.m_charWidthPixel + m_ShareData.m_nColumnSpace);
+                        px = m_viewLeftCol * (m_ShareData.m_charWidthPixel + m_ShareData.m_nColumnSpace);
                         py = index * m_ShareData.m_charHeightPixel;
 #if true // 高速化テスト
                         // 必要な部分以外は描画しない
@@ -3425,7 +3623,7 @@ namespace CETextBoxControl
 #endif
 #endif
             // 再描画
-            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, false);
             //this.Refresh();
 
             // 選択範囲の終了位置取得
@@ -3438,7 +3636,7 @@ namespace CETextBoxControl
             CaretPosMove();
 
             // 現在の桁（ピクセル）を基準値として保存
-            m_curCaretColPosPixel = m_caretPixel.X;
+            m_curCaretColPosPixel = m_caretPositionPixel.X;
         }
 
         /// <summary>
@@ -3465,14 +3663,14 @@ namespace CETextBoxControl
             PointToCaretPos();
 
             // 現在位置の文字を取得
-            string s = m_doc.GetLineStringP(m_caretStrBuf.Y);
+            string s = m_doc.GetLineStringP(m_caretPositionP.Y);
 
             // 行
-            m_sRng.Y = m_caretStrBuf.Y;
-            m_eRng.Y = m_caretStrBuf.Y;
+            m_sRng.Y = m_caretPositionP.Y;
+            m_eRng.Y = m_caretPositionP.Y;
 
             // 前検索
-            int curIdx = m_caretStrBuf.X;
+            int curIdx = m_caretPositionP.X;
             for (; curIdx > 0; curIdx--)
             {
                 if (((s[curIdx].ToString() == "\t")                             && (s[curIdx - 1].ToString() == "\t")) ||                             // タブ
@@ -3492,7 +3690,7 @@ namespace CETextBoxControl
             m_sRng.X = curIdx;
 
             // 後ろ検索
-            curIdx = m_caretStrBuf.X;
+            curIdx = m_caretPositionP.X;
             int len = s.Length;
             for (; curIdx < len - 1; curIdx++)
             {
@@ -3515,7 +3713,7 @@ namespace CETextBoxControl
             m_selectType = NORMAL_RANGE_SELECT;
 
             // 再描画
-            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
         }
 
         private Boolean checkZen(string s)
@@ -3554,11 +3752,11 @@ namespace CETextBoxControl
             PointToCaretPos();
 
             // 現在位置の文字を取得
-            string s = m_doc.GetLineStringP(m_caretStrBuf.Y);
+            string s = m_doc.GetLineStringP(m_caretPositionP.Y);
 
             // 行
-            m_sRng.Y = m_caretStrBuf.Y;
-            m_eRng.Y = m_caretStrBuf.Y;
+            m_sRng.Y = m_caretPositionP.Y;
+            m_eRng.Y = m_caretPositionP.Y;
 
             // 列
             m_sRng.X = 0;
@@ -3567,7 +3765,7 @@ namespace CETextBoxControl
             m_selectType = NORMAL_RANGE_SELECT;
 
             // 再描画
-            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
         }
 
         /// <summary>
@@ -3585,20 +3783,20 @@ namespace CETextBoxControl
             //Point cp = this.PointToClient(sp);
             int xPos = cp.X - m_startColPos;
             int yPos = cp.Y - m_startRowPos;
-            int hiddenPixelSize = m_viewLeftColumn * m_ShareData.m_charWidthPixel;
+            int hiddenPixelSize = m_viewLeftCol * m_ShareData.m_charWidthPixel;
             xPos += hiddenPixelSize;
 
             // ---------------------------------------------
             // 行計算
             // ---------------------------------------------
-            int row = (yPos / m_ShareData.m_charHeightPixel) + m_viewTopRow;
+            int row = (yPos / m_ShareData.m_charHeightPixel) + m_viewTopRowP;
             if (m_doc.GetLineCountP() > row)
             {
-                m_caretStrBuf.Y = row;
+                m_caretPositionP.Y = row;
             }
             else
             {
-                m_caretStrBuf.Y = (m_doc.GetLineCountP() - 1) + m_viewTopRow;
+                m_caretPositionP.Y = (m_doc.GetLineCountP() - 1) + m_viewTopRowP;
             }
 
             // ---------------------------------------------
@@ -3607,9 +3805,9 @@ namespace CETextBoxControl
             int posX;
             int idx;
             // 指定した行(物理)の列(ピクセル)から列(物理・ピクセル)を取得する
-            GetMovePosV(m_caretStrBuf.Y, xPos, out posX, out idx);
-            m_caretStrBuf.X = idx;    // キャレットの配列位置(列)
-            m_caretPixel.X = posX;      // キャレットの座標(X)
+            GetMovePosV(m_caretPositionP.Y, xPos, out posX, out idx);
+            m_caretPositionP.X = idx;    // キャレットの配列位置(列)
+            m_caretPositionPixel.X = posX;      // キャレットの座標(X)
         }
 
         /// <summary>
@@ -3730,8 +3928,8 @@ namespace CETextBoxControl
             {
                 if (m_cRng.X == -1 && m_cRng.Y == -1)
                 {
-                    m_cRng.X = m_caretStrBuf.X;
-                    m_cRng.Y = m_caretStrBuf.Y;
+                    m_cRng.X = m_caretPositionP.X;
+                    m_cRng.Y = m_caretPositionP.Y;
                 }
                 return;
             }
@@ -3742,8 +3940,8 @@ namespace CETextBoxControl
             {
                 if (m_cRng.X == -1 && m_cRng.Y == -1)
                 {
-                    m_cRng.X = m_caretStrBuf.X;
-                    m_cRng.Y = m_caretStrBuf.Y;
+                    m_cRng.X = m_caretPositionP.X;
+                    m_cRng.Y = m_caretPositionP.Y;
                 }
                 m_selectType = NORMAL_RANGE_SELECT;
             }
@@ -3764,8 +3962,8 @@ namespace CETextBoxControl
             // 移動元の位置を取得
             if (m_selectType != NONE_RANGE_SELECT)
             {
-                m_eRng.X/*m_eRngCol*/ = m_caretStrBuf.X/*m_caretStrBufColumn*/; // 現在のキャレットは選択されていないので-1する
-                m_eRng.Y/*m_eRngRow*/ = m_caretStrBuf.Y/*m_caretStrBufRow*/;
+                m_eRng.X/*m_eRngCol*/ = m_caretPositionP.X/*m_caretStrBufColumn*/; // 現在のキャレットは選択されていないので-1する
+                m_eRng.Y/*m_eRngRow*/ = m_caretPositionP.Y/*m_caretStrBufRow*/;
                 SetRangePos();
             }
         }
@@ -3820,14 +4018,14 @@ namespace CETextBoxControl
             if (m_doc.GetLineCountP() > m_sRng.Y)
             {
                 // テキスト範囲内
-                m_caretStrBuf.Y = m_sRng.Y;
-                m_caretStrBuf.X = m_sRng.X;
+                m_caretPositionP.Y = m_sRng.Y;
+                m_caretPositionP.X = m_sRng.X;
             }
             else
             {
                 // テキスト範囲外の場合、EOFの場所にキャレットを移動する
-                m_caretStrBuf.Y = (m_doc.GetLineCountP() - 1) + m_viewTopRow;
-                GetCaretPositionH(m_doc.GetLineStringP(m_caretStrBuf.Y).Length);
+                m_caretPositionP.Y = (m_doc.GetLineCountP() - 1) + m_viewTopRowP;
+                GetCaretPositionH(m_doc.GetLineStringP(m_caretPositionP.Y).Length);
             }
 
             // 範囲選択解除
@@ -3837,7 +4035,7 @@ namespace CETextBoxControl
             //DispPosMove();
 
             // キャレットが横移動している可能性があるので、キャレットの基準位置を更新
-            m_curCaretColPosPixel = m_caretPixel.X;
+            m_curCaretColPosPixel = m_caretPositionPixel.X;
         }
 
         /// <summary>
@@ -3883,7 +4081,7 @@ namespace CETextBoxControl
             else if (m_selectType == RACTANGLE_RANGE_SELECT)
             {
                 // 矩形選択範囲を文字列として取得
-                copyString = m_doc.GetRectangleString(m_sRng, m_eRng, m_curCaretColPosPixel, m_rectCaretColPosPixel, m_viewLeftColumn, ref m_sRectIdx, ref m_eRectIdx);
+                copyString = m_doc.GetRectangleString(m_sRng, m_eRng, m_curCaretColPosPixel, m_rectCaretColPosPixel, m_viewLeftCol, ref m_sRectIdx, ref m_eRectIdx);
             }
 
             if (copyString != "")
@@ -3906,7 +4104,7 @@ namespace CETextBoxControl
             LayoutScrollBar();
 
             // 描画
-            this.InvalidateRect(this.Handle, IntPtr.Zero, false);
+            CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, false);
             //this.Refresh();
 
             return;
@@ -3929,7 +4127,7 @@ namespace CETextBoxControl
             else if (m_selectType == RACTANGLE_RANGE_SELECT)
             {
                 // 選択範囲を文字列として取得
-                copyString = m_doc.GetRectangleString(m_sRng, m_eRng, m_curCaretColPosPixel, m_rectCaretColPosPixel, m_viewLeftColumn, ref m_sRectIdx, ref m_eRectIdx);
+                copyString = m_doc.GetRectangleString(m_sRng, m_eRng, m_curCaretColPosPixel, m_rectCaretColPosPixel, m_viewLeftCol, ref m_sRectIdx, ref m_eRectIdx);
             }
 
             if (copyString != "")
@@ -3952,7 +4150,7 @@ namespace CETextBoxControl
             LayoutScrollBar();
 
             // 描画
-            this.InvalidateRect(this.Handle, IntPtr.Zero, false);
+            CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, false);
             //this.Refresh();
 
             return;
@@ -3973,12 +4171,12 @@ namespace CETextBoxControl
             /*****************************************************/
             /* Undo / Redo アンドゥ リドゥ                       */
             /*****************************************************/
-            UndoRedoOpe.PreUndoRedo(m_caretStrBuf, NORMAL_RANGE_SELECT, this);
+            UndoRedoOpe.PreUndoRedo(m_caretPositionP, NORMAL_RANGE_SELECT, this);
 
             // テキスト挿入
             int mx = 0;
             //int my = 0;
-            this.MultiLineInsertText(m_caretStrBuf.Y, m_caretStrBuf.X, str, ref mx);
+            this.MultiLineInsertText(m_caretPositionP.Y, m_caretPositionP.X, str, ref mx);
             int bkCursorMod = m_ShareData.m_cursorMode;
             m_ShareData.m_cursorMode = 0;
             GetCaretPositionH(mx);
@@ -3989,13 +4187,13 @@ namespace CETextBoxControl
             LayoutScrollBar();
 
             // 再描画
-            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
             //this.Refresh();
 
             /*****************************************************/
             /* Undo / Redo アンドゥ リドゥ                       */
             /*****************************************************/
-            UndoRedoOpe.ProUndoRedo(m_caretStrBuf, UndoRedoCode.UR_INSERT, str, this);
+            UndoRedoOpe.ProUndoRedo(m_caretPositionP, UndoRedoCode.UR_INSERT, str, this);
         }
 
         /// <summary>
@@ -4013,7 +4211,7 @@ namespace CETextBoxControl
             /*****************************************************/
             /* Undo / Redo アンドゥ リドゥ                       */
             /*****************************************************/
-            //UndoRedoOpe.PreUndoRedo(m_caretStrBuf, RACTANGLE_RANGE_SELECT, this);
+            //UndoRedoOpe.PreUndoRedo(m_caretPositionP, RACTANGLE_RANGE_SELECT, this);
 
             // テキスト挿入
             // 通常貼り付けの場合
@@ -4023,25 +4221,25 @@ namespace CETextBoxControl
             // 矩形貼り付け
             int lCol = -1;
             int lRow = -1;
-            this.MultiLineRectangleInsertText(m_caretStrBuf.Y, m_caretStrBuf.X, str, out lRow, out lCol);
+            this.MultiLineRectangleInsertText(m_caretPositionP.Y, m_caretPositionP.X, str, out lRow, out lCol);
 
             // キャレット移動
-            CursorKeyV(lRow - m_caretStrBuf.Y);
-            CursorKeyH(lCol - m_caretStrBuf.X);
+            CursorKeyV(lRow - m_caretPositionP.Y);
+            CursorKeyH(lCol - m_caretPositionP.X);
 #endif
 
             // スクロールバー再配置
             LayoutScrollBar();
 
             // 再描画
-            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
             //this.Refresh();
 
             /*****************************************************/
             /* Undo / Redo アンドゥ リドゥ                       */
             /*****************************************************/
             Point p = new Point(lCol, lRow);
-            //UndoRedoOpe.ProUndoRedo(p/*m_caretStrBuf*/, UndoRedoCode.UR_INSERT, str, this);
+            //UndoRedoOpe.ProUndoRedo(p/*m_caretPositionP*/, UndoRedoCode.UR_INSERT, str, this);
 
             // 範囲選択の解除
             //RangeCancel();
@@ -4158,7 +4356,7 @@ namespace CETextBoxControl
                 {
                     // EOFの場合
 
-                    pCol = m_caretStrBuf.X;
+                    pCol = m_caretPositionP.X;
                 }
                 else
                 {
@@ -4299,17 +4497,17 @@ namespace CETextBoxControl
             m_eRng.X = m_doc.GetLineStringP(m_doc.GetLineCountP()-1).Length;
             m_selectType = NORMAL_RANGE_SELECT;
 
-            m_caretPixel.X = 0;
-            m_caretPixel.Y = 0;
+            m_caretPositionPixel.X = 0;
+            m_caretPositionPixel.Y = 0;
 
-            m_caretStrBuf.X = 0;
-            m_caretStrBuf.Y = 0;
+            m_caretPositionP.X = 0;
+            m_caretPositionP.Y = 0;
 
             // スクロールバー再配置
             LayoutScrollBar();
 
             // 描画
-            this.InvalidateRect(this.Handle, IntPtr.Zero, false);
+            CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, false);
             //this.Refresh();
         }
 
@@ -4331,8 +4529,8 @@ namespace CETextBoxControl
                 // 操作後位置(論理位置→物理位置)
                 int pAftRow, pAftCol;
                 m_doc.LtoPPos(OpeData.m_aftCaret.Y, OpeData.m_aftCaret.X, out pAftRow, out pAftCol);
-                m_caretStrBuf.X = pPreCol;
-                m_caretStrBuf.Y = pPreRow;
+                m_caretPositionP.X = pPreCol;
+                m_caretPositionP.Y = pPreRow;
 
                 if (OpeData.m_selectType == RACTANGLE_RANGE_SELECT)
                 {
@@ -4351,11 +4549,11 @@ namespace CETextBoxControl
                     // その他
                     m_doc.DelRangeStringL(OpeData.m_preCaret.Y, OpeData.m_preCaret.X, OpeData.m_aftCaret.Y, OpeData.m_aftCaret.X);
                 }
-                //m_caretStrBuf.X = OpeData.m_preCaret.X;
-                //m_caretStrBuf.Y = OpeData.m_preCaret.Y;
+                //m_caretPositionP.X = OpeData.m_preCaret.X;
+                //m_caretPositionP.Y = OpeData.m_preCaret.Y;
                 // 範囲外キャレット移動
                 DispPosMove();
-                this.InvalidateRect(this.Handle, IntPtr.Zero, true);
+                CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
                 //this.Refresh();
                 ShowCaret();
             }
@@ -4366,17 +4564,17 @@ namespace CETextBoxControl
                 {
                     int pRow, pCol;
                     m_doc.LtoPPos(OpeData.m_preCaret.Y, OpeData.m_preCaret.X, out pRow, out pCol);   // 論理位置→物理位置
-                    m_caretStrBuf.X = pCol;
-                    m_caretStrBuf.Y = pRow;
+                    m_caretPositionP.X = pCol;
+                    m_caretPositionP.Y = pRow;
                     int mx = 0;
                     //int my = 0;
-                    this.MultiLineInsertText(m_caretStrBuf.Y, m_caretStrBuf.X, OpeData.m_pcmemData, ref mx);
+                    this.MultiLineInsertText(m_caretPositionP.Y, m_caretPositionP.X, OpeData.m_pcmemData, ref mx);
                     GetCaretPositionH(mx);
                     //GetCaretPositionV(my);
                 }
                 // 範囲外キャレット移動
                 DispPosMove();
-                this.InvalidateRect(this.Handle, IntPtr.Zero, true);
+                CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
                 //this.Refresh();
                 ShowCaret();
             }
@@ -4400,38 +4598,38 @@ namespace CETextBoxControl
 #else
                 int pRow, pCol;
                 m_doc.LtoPPos(OpeData.m_preCaret.Y, OpeData.m_preCaret.X, out pRow, out pCol);   // 論理位置→物理位置
-                m_caretStrBuf.X = pCol;
-                m_caretStrBuf.Y = pRow;
+                m_caretPositionP.X = pCol;
+                m_caretPositionP.Y = pRow;
 #endif
                 if (OpeData.m_selectType == RACTANGLE_RANGE_SELECT)
                 {
                     // 矩形選択部分の削除
                     int eX, eY;
-                    this.MultiLineRectangleInsertText(m_caretStrBuf.Y, m_caretStrBuf.X, OpeData.m_pcmemData, out eY, out eX);
+                    this.MultiLineRectangleInsertText(m_caretPositionP.Y, m_caretPositionP.X, OpeData.m_pcmemData, out eY, out eX);
                 }
                 else
                 {
                     // その他
                     int mx = 0;
                     //int my = 0;
-                    MultiLineInsertText(m_caretStrBuf.Y, m_caretStrBuf.X, OpeData.m_pcmemData, ref mx);
+                    MultiLineInsertText(m_caretPositionP.Y, m_caretPositionP.X, OpeData.m_pcmemData, ref mx);
                     GetCaretPositionH(mx);
                     //GetCaretPositionV(my);
 
                 }
                 // 範囲外キャレット移動
                 DispPosMove();
-                this.InvalidateRect(this.Handle, IntPtr.Zero, true);
+                CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
                 //this.Refresh();
             }
             else if (OpeData.m_ope == UndoRedoCode.UR_DELETE)
             {
                 m_doc.DelRangeStringL(OpeData.m_preCaret.Y, OpeData.m_preCaret.X, OpeData.m_aftCaret.Y, OpeData.m_aftCaret.X);
-                m_caretStrBuf.X = OpeData.m_preCaret.X;
-                m_caretStrBuf.Y = OpeData.m_preCaret.Y;
+                m_caretPositionP.X = OpeData.m_preCaret.X;
+                m_caretPositionP.Y = OpeData.m_preCaret.Y;
                 // 範囲外キャレット移動
                 DispPosMove();
-                this.InvalidateRect(this.Handle, IntPtr.Zero, true);
+                CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
                 //this.Refresh();
             }
         }
@@ -4467,8 +4665,8 @@ namespace CETextBoxControl
             if (m_selectType == NONE_RANGE_SELECT)
             {
                 // 範囲選択中でない場合
-                findStartRow = m_caretStrBuf.Y;
-                findStartCol = m_caretStrBuf.X;
+                findStartRow = m_caretPositionP.Y;
+                findStartCol = m_caretPositionP.X;
             }
             else
             {
@@ -4559,8 +4757,8 @@ namespace CETextBoxControl
                     m_eRng.Y = row;
                     m_eRng.X = findPoint + fStr.Length;
 
-                    m_caretStrBuf.Y = m_sRng.Y;
-                    m_caretStrBuf.X = m_sRng.X;
+                    m_caretPositionP.Y = m_sRng.Y;
+                    m_caretPositionP.X = m_sRng.X;
 
                     m_selectType = NORMAL_RANGE_SELECT;
                     m_searchType = SEARCH_TYPE;
@@ -4570,7 +4768,7 @@ namespace CETextBoxControl
             } //for
 
             CaretPosMove();
-            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
         }
 
         /// <summary>
@@ -4677,8 +4875,8 @@ namespace CETextBoxControl
             if (m_selectType == NONE_RANGE_SELECT)
             {
                 // 範囲選択中でない場合
-                findY = m_caretStrBuf.Y;
-                findX = m_caretStrBuf.X;
+                findY = m_caretPositionP.Y;
+                findX = m_caretPositionP.X;
             }
             else
             {
@@ -4772,8 +4970,8 @@ namespace CETextBoxControl
                     m_eRng.Y = row;
                     m_eRng.X = findPoint + fStr.Length;
 
-                    m_caretStrBuf.Y = m_sRng.Y;
-                    m_caretStrBuf.X = m_eRng.X;
+                    m_caretPositionP.Y = m_sRng.Y;
+                    m_caretPositionP.X = m_eRng.X;
 
                     m_selectType = NORMAL_RANGE_SELECT;
                     m_searchType = SEARCH_TYPE;
@@ -4783,7 +4981,7 @@ namespace CETextBoxControl
             } // for
 
             CaretPosMove();
-            this.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
         }
 
         /// <summary>
@@ -5116,7 +5314,7 @@ namespace CETextBoxControl
                 objStr = m_doc.GetNotLineFeedString(m_doc.GetLineStringP(row, lLine, pLine));
 
                 // 削除範囲の列インデックスを取得し、gsIdxとgeIdxに格納
-                m_doc.GetRectMovePosV(row, m_rectCaretColPosPixel, m_curCaretColPosPixel, objStr, m_viewLeftColumn, out m_sRectIdx, out m_eRectIdx);
+                m_doc.GetRectMovePosV(row, m_rectCaretColPosPixel, m_curCaretColPosPixel, objStr, m_viewLeftCol, out m_sRectIdx, out m_eRectIdx);
 
                 // 削除開始・終了位置をPointクラスに設定
                 Point sRng = new Point(m_sRectIdx, row);

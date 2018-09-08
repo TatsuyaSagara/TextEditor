@@ -1433,7 +1433,7 @@ namespace CETextBoxControl
             // 折返し表示でない場合
             if (!m_ShareData.m_wrapPositionFlag)
             {
-                lLine = row;
+                lLine = row; // 折り返しなしなので、物理行＝論理行
                 pLine = 0;
                 return true;
             }
