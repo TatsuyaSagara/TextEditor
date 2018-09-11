@@ -95,17 +95,31 @@ namespace CETextBoxControl
         /// <summary>
         /// キャレット位置(0インデックス）（物理位置）
         /// 文字単位の位置
+        /// 注意１
         /// 　"あいう"の"う"の位置では"2"
         /// 　"abc"の"c"の位置でも"2"
         /// 　となる
+        /// 注意２
+        /// 　タブも1文字と計算される
         /// </summary>
         private Point m_caretPositionP;
 
         /// <summary>
         /// キャレット位置のピクセル座標（0インデックス）（文字列の左端が0）
-        /// エディタ部分の一番左上が 0:0 となる
+        /// 表示中の1行目1列目が0:0となる。（物理：絶対位置）
         /// </summary>
         private Point m_caretPositionPixel/* = new Point()*/;
+
+        /// <summary>
+        /// 全角：２、半角：１とした場合のキャレットの位置（物理：絶対位置）
+        /// </summary>
+        private int m_caretPositionChar
+        {
+            get
+            {
+                return m_caretPositionPixel.X / (m_ShareData.m_charWidthPixel + m_ShareData.m_nColumnSpace);
+            }
+        }
 
         // --------------------------------------------------
 
@@ -148,7 +162,6 @@ namespace CETextBoxControl
         /// ※未使用
         /// </summary>
         //private int m_screenWidthPixel;
-
 
         // --------------------------------------------------
         // --------------------------------------------------
@@ -1978,17 +1991,6 @@ namespace CETextBoxControl
                 nPos = -1 * m_viewTopRowP;
             }
 
-            if (m_caretPositionP.Y < m_viewTopRowP)
-            {
-                // 描画行数を保存
-                m_scrollAmountNumV = nPos + 1; // +1は、1行移動した場合、現れた行＋カーソル行も描画する必要があるため
-            }
-            else if (m_caretPositionP.Y > m_viewTopRowP + m_viewDispRow - 1)
-            {
-                // 描画行数を保存
-                m_scrollAmountNumV = nPos + 1; // +1は、1行移動した場合、現れた行＋カーソル行も描画する必要があるため
-            }
-
             if (nPos != 0)
             {
                 m_vScrollBar.Value/*m_scrollInfoV.nPos*/ += nPos / m_nVScrollRate; // スクロールバーのつまみの位置指定
@@ -2522,7 +2524,7 @@ namespace CETextBoxControl
             // キャレットの行を設定
             m_caretPositionP.Y += nPos;
 
-#if false
+            // ★★★ 描画行数はこの時点で設定しておく必要がある ★★★
             // 画面の一番上と下で上下ボタンが押されたとき（スクロール発生）
             if ((m_caretPositionP.Y < m_viewTopRowP) ||
                 (m_caretPositionP.Y >= m_viewTopRowP + m_viewDispRow))
@@ -2530,7 +2532,6 @@ namespace CETextBoxControl
                 // 描画行数を保存
                 m_scrollAmountNumV = nPos + 1; // +1は、1行移動した場合、現れた行＋カーソル行も描画する必要があるため
             }
-#endif
 
             int posX;
             int idx;
@@ -2824,17 +2825,16 @@ namespace CETextBoxControl
 #if false
             }
 #endif
-#if false
-            フリーカーソルを考慮する必要があるからDispPosMove()に移動すべきか
 
             // 画面より左右にあるか
-            if ((columnStringLen - m_ShareData.m_scrollColSpage < m_viewLeftCol) ||
-                (columnStringLen + m_ShareData.m_scrollColSpage > m_viewLeftCol + m_viewDispCol))
+            if ((m_caretPositionChar > m_viewLeftCol + m_viewDispCol - m_ShareData.m_scrollColSpage) ||
+                ((m_caretPositionChar < m_viewLeftCol + m_ShareData.m_scrollColSpage) && 
+                 (m_caretPositionChar > m_ShareData.m_scrollColSpage)))
             {
                 // 描画行数を保存（半角数単位）
                 m_scrollAmountNumH = nPos + 1;
             }
-#endif
+
             // 選択範囲の終了位置取得
             EndRange();
 
