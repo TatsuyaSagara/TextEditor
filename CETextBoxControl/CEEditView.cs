@@ -154,6 +154,8 @@ namespace CETextBoxControl
 
         /// <summary>
         /// 画面に表示される列数
+        /// ※半角単位（全角：２、半角：１）
+        /// ※中途半端に表示されている文字はカウントされない
         /// </summary>
         private int m_viewDispCol;
 
@@ -195,7 +197,7 @@ namespace CETextBoxControl
         {
             get
             {
-                return m_scrollAmountNumH * m_ShareData.m_charHeightPixel;
+                return m_scrollAmountNumH * m_ShareData.m_charWidthPixel;
             }
         }
 
@@ -1582,6 +1584,10 @@ namespace CETextBoxControl
             int oldTextColor = -1;
             int oldBackColor = -1;
 
+            //CECommon.print("m_scrollAmountPixelH:[" + m_scrollAmountPixelH + "]");
+            //CECommon.print("Display string      :[" + s + "]");
+            //CECommon.print("Display point x     :[" + x + "]");
+
             // 表示しようとする文字列から改行文字を削除
             s = m_doc.GetNotLineFeedString(s);
 
@@ -1714,53 +1720,30 @@ namespace CETextBoxControl
                     //CEWin32Api.SetTextColor(m_hDrawDC, CEConstants.CommentFontColor);
                     lineComment = true;
                 }
-                // ファイルの先頭からチェックして現在位置がコメント内の表示なのかチェックする必要がある（今は画面内（表示領域）のみのチェックなので問題あり）
-                // 速度的な問題もあるのでちゃんと考えてから実装する必要がある
-#if false
-                // ブロックコメント(★暫定★)
-                if (((col < s.Length - 1) && (txt == "/" && s[col + 1].ToString() == "*")) || blockComment)
-                {
-                    CEWin32Api.SetTextColor(m_hDrawDC, CEConstants.CommentFontColor);
-                    blockComment = true;
-                }
 
-                // ブロックコメント(★暫定★)
-                if (((col > 0) && (txt == "/" && s[col - 1].ToString() == "*")) && blockComment)
-                {
-                    CEWin32Api.SetTextColor(m_hDrawDC, CEConstants.CommentFontColor);
-                    blockComment = false;
-                }
-#endif
                 // 文字色を設定
                 oldTextColor = (int)CEWin32Api.SetTextColor(m_hDrawDC, textColor);
                 oldBackColor = (int)CEWin32Api.SetBkColor(m_hDrawDC, backColor);
 
-                //CEWin32Api.SetTextAlign(m_hDrawDC, false);
-                //const int TRANSPARENT = 1;
-                //const int OPAQUE = 2;
-                //int ret = CEWin32Api.SetBkMode(m_hDrawDC, TRANSPARENT);
-
+                //CECommon.print("col[" + col + "]=[" + txt + "]");
+                // ■
+                if ((m_scrollAmountNumH > 0) && (px < screenWidth - m_scrollAmountPixelH - m_ShareData.m_charWidthPixel*2))
+                {
+                    px += textWidth;
+                    col++;
+                    continue;
+                }
                 // 文字を設定
                 rcClip.left = px + m_startColPos;
                 rcClip.top = py + m_startRowPos;
                 rcClip.right = px + textWidth + m_startColPos;
                 rcClip.bottom = py + m_ShareData.m_charHeightPixel + m_startRowPos;
                 CEWin32Api.ExtTextOut(m_hDrawDC, px + m_startColPos, py + m_startRowPos, (uint)CEWin32Api.ETOOptions.ETO_CLIPPED | (uint)CEWin32Api.ETOOptions.ETO_OPAQUE, ref rcClip, txt, (uint)/*txt.Length*/1, null);
-                //CEWin32Api.ExtTextOut2(m_hDrawDC, px + m_startColPos, py + m_startRowPos, 0, txt);
-
-                // ExtTextOut2()の方を有効にすると、SetBkColorで背景の塗りつぶしができなかった。
-                // 背景の塗りつぶしをするならFillRectangleを使用しなければならないのだと思う。
-
-                //if (IsRngStr(row, col))
-                //{
-                //    Graphics g = Graphics.FromHdc(m_hDrawDC);
-                //    g.FillRectangle(Brushes.Aqua, px + m_startColPos, py + m_startRowPos, rcClip.right, m_ShareData.m_charHeightPixel);
-                //    g.Dispose();
-                //}
 
                 px += textWidth;
                 col++;
 
+                // 必要？
                 //CEWin32Api.SelectObject(m_hDrawDC, hFontOld);
                 //CEWin32Api.SetTextColor(m_hDrawDC, oldTextColor);
                 //CEWin32Api.SetBkColor(m_hDrawDC, oldBackColor);
@@ -1904,13 +1887,14 @@ namespace CETextBoxControl
         /// <param name="nPosY">垂直移動量</param>
         private void MoveCaret(int nPosX, int nPosY)
         {
+#if false
             CECommon.print("キャレット位置              ：列=" + m_caretPositionP.X + "/行=" + m_caretPositionP.Y);
             CECommon.print("キャレット位置（ピクセル）  ：X=" + m_caretPositionPixel.X + "/Y=" + m_caretPositionPixel.Y);
             CECommon.print("カーソル移動量              ：X=" + nPosX + "/Y=" + nPosY + ")");
             CECommon.print("画面上の行数（物理）        ：" + m_viewTopRowP);
             CECommon.print("画面上の行数（論理）        ：" + m_viewTopRowL);
             CECommon.print("画面上の行数（論理内の物理）：" + m_viewTopRowLP);
-
+#endif
             // -------------------------------------
             // 移動チェック
             // 移動不要の場合は何もせず処理終了
@@ -2138,7 +2122,7 @@ namespace CETextBoxControl
                                         CEWin32Api.SW_INVALIDATE | CEWin32Api.SW_ERASE);
 
                         // InvalidateRect
-                        int clip_x = (m_viewDispCol * m_ShareData.m_charWidthPixel) - m_viewLeftCol * m_ShareData.m_charWidthPixel;
+                        int clip_x = (m_viewDispCol * m_ShareData.m_charWidthPixel) - m_scrollAmountPixelH + m_startColPos;
                         Rectangle rctgl = new Rectangle(
                                         clip_x,
                                         0,
@@ -2530,7 +2514,9 @@ namespace CETextBoxControl
                 (m_caretPositionP.Y >= m_viewTopRowP + m_viewDispRow))
             {
                 // 描画行数を保存
-                m_scrollAmountNumV = nPos + 1; // +1は、1行移動した場合、現れた行＋カーソル行も描画する必要があるため
+                // +1は、1行移動した場合、現れた行＋カーソル行も描画する必要があるため
+                if (0 < nPos) m_scrollAmountNumV = nPos + 1;
+                else if (0 > nPos) m_scrollAmountNumV = nPos - 1;
             }
 
             int posX;
@@ -2825,15 +2811,28 @@ namespace CETextBoxControl
 #if false
             }
 #endif
-
+#if false
+            // ★★★ 垂直スクロールの場合と同様に、描画行数はこの時点で設定しておく必要がある ★★★
             // 画面より左右にあるか
             if ((m_caretPositionChar > m_viewLeftCol + m_viewDispCol - m_ShareData.m_scrollColSpage) ||
                 ((m_caretPositionChar < m_viewLeftCol + m_ShareData.m_scrollColSpage) && 
                  (m_caretPositionChar > m_ShareData.m_scrollColSpage)))
             {
                 // 描画行数を保存（半角数単位）
-                m_scrollAmountNumH = nPos + 1;
+                // +1は、1列移動した場合、現れた列＋カーソル列も描画する必要があるため
+                // ★★★+1としているが、タブ幅が考慮されていない。。。
+                if (0 < nPos) m_scrollAmountNumH = nPos + 1;
+                else if (0 > nPos) m_scrollAmountNumH = nPos - 1;
             }
+#else
+            if (m_curCaretColPosPixel != m_caretPositionPixel.X)
+            {
+                // 保存中の移動前のピクセルと位置X軸が変わったら移動したということ
+
+                // 何キャラ分移動したか
+                m_scrollAmountNumH = (m_caretPositionPixel.X - m_curCaretColPosPixel) / m_ShareData.m_charWidthPixel +1;
+            }
+#endif
 
             // 選択範囲の終了位置取得
             EndRange();
@@ -2848,7 +2847,7 @@ namespace CETextBoxControl
             DispPosMove();
 
             // 再描画
-            CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
 
             //// アンダーバー表示（横線）
             //this.ShowCaretUnderbar(m_prevCaretPixel.Y + m_startRowPos, false);
@@ -3591,8 +3590,8 @@ namespace CETextBoxControl
             }
 
 #if true // 高速化テスト
-            CECommon.print("行：" + m_scrollAmountNumV);
-            CECommon.print("列：" + m_scrollAmountNumH);
+            //CECommon.print("行：" + m_scrollAmountNumV);
+            //CECommon.print("列：" + m_scrollAmountNumH);
             // 上下左右の描画領域を初期化 ！！ここで初期化するのは強引なのでちゃんとしたところに移動予定！！
             m_scrollAmountNumV = 0;
             m_scrollAmountNumH = 0;
