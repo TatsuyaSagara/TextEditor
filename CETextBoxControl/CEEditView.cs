@@ -3624,7 +3624,7 @@ namespace CETextBoxControl
             //CECommon.print("列：" + m_scrollAmountNumH);
             // 上下左右の描画領域を初期化 ！！ここで初期化するのは強引なのでちゃんとしたところに移動予定！！
             m_scrollAmountNumV = 0;
-            //m_scrollAmountNumH = 0;
+            m_scrollAmountPixelH = 0;
 #endif
         }
 
