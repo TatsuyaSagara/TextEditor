@@ -2765,8 +2765,20 @@ namespace CETextBoxControl
                 return;
             }
 
+            // 範囲選択から未選択になったか確認するために確保しておく
+            int CurrentSelectStatus = m_selectType;
+
             // 選択範囲の開始位置取得
             StarRange();
+
+            // 範囲選択→範囲未選択に移行した場合、選択状態をクリアする
+            if (CurrentSelectStatus != m_selectType && m_selectType == NONE_RANGE_SELECT/* && m_scrollAmountNumV == 0*/)
+            {
+                // 全画面更新対象
+                CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+                // 即更新
+                this.Update();
+            }
 
             // 移動先の物理位置を取得
             int aRow = -1;
@@ -2889,6 +2901,13 @@ namespace CETextBoxControl
 
             // 現在の桁（ピクセル）を基準値として保存
             m_curCaretColPosPixel = m_caretPositionPixel.X;
+
+            // 【選択状態】かつ【上下スクロールでない】の場合は、全画面再描画する（遅くなっちゃうけど）
+            if ((m_selectType != NONE_RANGE_SELECT && m_scrollAmountPixelH == 0))
+            {
+                // 再描画
+                CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            }
         }
 
         /// <summary>
