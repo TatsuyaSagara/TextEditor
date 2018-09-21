@@ -119,8 +119,8 @@ namespace CETextBoxControl
         public static int EditLineFontColor = CECommon.GetColor(0xdd, 0x00, 0x00);      // フォント(編集)
 
         // 範囲選択
-        public static int SelectBackColor = CECommon.GetColor(0x55, 0x55, 0x00);        // 背景
-        public static int SelectFontColor = CECommon.GetColor(0xff, 0xff, 0xff);        // フォント
+        public static int SelectBackColor = CECommon.GetColor(0xa6, 0xc9, 0xff);        // 背景
+        public static int SelectFontColor = CECommon.GetColor(0x33, 0x33, 0x33);        // フォント
         public static int SelectRctFontColor = CECommon.GetColor(0xff, 0xff, 0xff);     // フォント（矩形選択）
         public static int SelectLfBackColor = CECommon.GetColor(0x00, 0xdd, 0x00);      // 背景（改行）
 
@@ -128,8 +128,8 @@ namespace CETextBoxControl
         public static int SearchBackColor = CECommon.GetColor(0xff, 0xff, 0x00);        // 背景
         public static int SearchFontColor = CECommon.GetColor(0x00, 0x00, 0x00);        // フォント
 
-        public static int SearchMarkBackColor = CECommon.GetColor(0xdd, 0xdd, 0x00);        // 背景
-        public static int SearchMarkFontColor = CECommon.GetColor(0x00, 0x00, 0x00);        // フォント
+        public static int SearchMarkBackColor = CECommon.GetColor(0xdd, 0xdd, 0x00);    // 背景
+        public static int SearchMarkFontColor = CECommon.GetColor(0x00, 0x00, 0x00);    // フォント
 
         // ルーラー
         public static int CaretColPosColor = CECommon.GetColor(0xff, 0x00, 0x00);       // キャレット位置
@@ -141,7 +141,7 @@ namespace CETextBoxControl
         //public static int TabBackColor = CECommon.GetColor(0xff, 0x8c, 0x00);           // 背景
         //public static int TabFontColor = CECommon.GetColor(0x00, 0x00, 0x00);           // フォント
 
-        //public static int TabHoverColor = CECommon.GetColor(0xff, 0xe5, 0xaf);           // 背景（マウスを重ねる）
+        //public static int TabHoverColor = CECommon.GetColor(0xff, 0xe5, 0xaf);          // 背景（マウスを重ねる）
         //public static int TabBackColor = CECommon.GetColor(0x00, 0x7a, 0xcc);           // 背景
         //public static int TabFontColor = CECommon.GetColor(0xff, 0xff, 0xff);           // フォント
 #endif

@@ -1694,6 +1694,28 @@ namespace CETextBoxControl
                     }
                 }
 
+                //if ((m_scrollAmountNumH > 0) && (px < screenWidth - m_scrollAmountPixelH - m_vScrollBar.Width))
+                if (m_scrollAmountPixelH < 0)
+                {// 左にスクロール（右側へ移動）
+                    if (px < ((m_viewDispCol - m_ShareData.m_scrollColSpage) * m_ShareData.m_charWidthPixel) + (m_scrollAmountPixelH*2)
+                        )//- (m_ShareData.m_charWidthPixel)) // ← 全角が半分隠れた場合も表示したいので。
+                    {
+                        px += textWidth;
+                        col++;
+                        continue;
+                    }
+                }
+                else if (m_scrollAmountPixelH > 0)
+                {// 右にスクロール（左側へ移動）
+                    if (px > m_scrollAmountPixelH)
+                    {// 表示すべきところまで描画したので終了
+                        break;
+                        //px += textWidth;
+                        //col++;
+                        //continue;
+                    }
+                }
+
                 // 範囲選択チェック
                 if (IsRngStr(row, col))
                 {
@@ -1733,29 +1755,6 @@ namespace CETextBoxControl
                 oldTextColor = (int)CEWin32Api.SetTextColor(m_hDrawDC, textColor);
                 oldBackColor = (int)CEWin32Api.SetBkColor(m_hDrawDC, backColor);
 
-                //CECommon.print("col[" + col + "]=[" + txt + "]");
-                // ■
-                //if ((m_scrollAmountNumH > 0) && (px < screenWidth - m_scrollAmountPixelH - m_vScrollBar.Width))
-                if (m_scrollAmountPixelH < 0)
-                {// 右側を描画
-                    if (px < (m_viewDispCol * m_ShareData.m_charWidthPixel) + m_scrollAmountPixelH
-                        - (m_ShareData.m_charWidthPixel)) // ← 全角が半分隠れた場合も表示したいので。
-                    {
-                        px += textWidth;
-                        col++;
-                        continue;
-                    }
-                }
-                else if (m_scrollAmountPixelH > 0)
-                {// 左側を描画
-                    if (px > m_scrollAmountPixelH)
-                    {// 表示すべきところまで描画したので終了
-                        break;
-                        //px += textWidth;
-                        //col++;
-                        //continue;
-                    }
-                }
                 // 文字を設定
                 rcClip.left = px + m_startColPos;
                 rcClip.top = py + m_startRowPos;
@@ -1768,8 +1767,8 @@ namespace CETextBoxControl
 
                 // 必要？
                 //CEWin32Api.SelectObject(m_hDrawDC, hFontOld);
-                //CEWin32Api.SetTextColor(m_hDrawDC, oldTextColor);
-                //CEWin32Api.SetBkColor(m_hDrawDC, oldBackColor);
+                CEWin32Api.SetTextColor(m_hDrawDC, oldTextColor);
+                CEWin32Api.SetBkColor(m_hDrawDC, oldBackColor);
             }
 
             return px;
@@ -2152,7 +2151,7 @@ namespace CETextBoxControl
                         //int clip_x = (m_viewDispCol * m_ShareData.m_charWidthPixel) - m_scrollAmountPixelH + m_startColPos;
                         //int clip_x = cRect.right + offsetX - m_vScrollBar.Width;
                         //int clip_x = cRect.right - m_startColPos - (m_viewDispCol * m_ShareData.m_charWidthPixel) + offsetX;
-                        int clip_x = m_startColPos + (m_viewDispCol * m_ShareData.m_charWidthPixel) + offsetX;
+                        int clip_x = m_startColPos + ((m_viewDispCol - m_ShareData.m_scrollColSpage) * m_ShareData.m_charWidthPixel) + offsetX;
                         Rectangle rctgl = new Rectangle(
                                         clip_x,                 // 左上のＸ座行
                                         0,                      // 左上のＹ座標
