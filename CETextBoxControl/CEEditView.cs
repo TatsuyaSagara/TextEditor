@@ -733,7 +733,20 @@ namespace CETextBoxControl
                         break;
                     // マウスホイール
                     case CEWin32Api.WM_MOUSEWHEEL:
-                        MoveScrollV((int)(CEConstants.MAMouseScroll * CEWin32Api.GET_WHEEL_DELTA_WPARAM(wParam) / CEWin32Api.WHEEL_DELTA));
+                        float mouseScrollAmount = CEConstants.MAMouseScroll * CEWin32Api.GET_WHEEL_DELTA_WPARAM(wParam) / CEWin32Api.WHEEL_DELTA;
+                        mouseScrollAmount *= 1.7f; // ■暫定的にマウスホイールでの移動量を1.5倍にしてもっさり感をなくす
+                        if (mouseScrollAmount == 0)
+                        {
+                            if (CEWin32Api.GET_WHEEL_DELTA_WPARAM(wParam) < 0)
+                            {
+                                mouseScrollAmount = 1;
+                            }
+                            else if (CEWin32Api.GET_WHEEL_DELTA_WPARAM(wParam) > 0)
+                            {
+                                mouseScrollAmount = -1;
+                            }
+                        }
+                        MoveScrollV((int)mouseScrollAmount);
                         break;
                     // マウス左ボタン押下
                     case CEWin32Api.WM_LBUTTONDOWN:
@@ -1589,8 +1602,6 @@ namespace CETextBoxControl
             CEWin32Api.RECT rcClip;
             int textColor = -1;
             int backColor = -1;
-            int oldTextColor = -1;
-            int oldBackColor = -1;
 
             //CECommon.print("m_scrollAmountPixelH:[" + m_scrollAmountPixelH + "]");
             //CECommon.print("Display string      :[" + s + "]");
@@ -1697,13 +1708,14 @@ namespace CETextBoxControl
                 //if ((m_scrollAmountNumH > 0) && (px < screenWidth - m_scrollAmountPixelH - m_vScrollBar.Width))
                 if (m_scrollAmountPixelH < 0)
                 {// 左にスクロール（右側へ移動）
-                    if (px < ((m_viewDispCol - m_ShareData.m_scrollColSpage) * m_ShareData.m_charWidthPixel) + (m_scrollAmountPixelH*2)
-                        )//- (m_ShareData.m_charWidthPixel)) // ← 全角が半分隠れた場合も表示したいので。
+                    if (px < ((m_viewDispCol - m_ShareData.m_scrollColSpage) * m_ShareData.m_charWidthPixel) + m_scrollAmountPixelH
+                        - (m_ShareData.m_charWidthPixel*2))  // ← 全角文字を考慮して、無効リージョン+半角1文字分描画する
                     {
                         px += textWidth;
                         col++;
                         continue;
                     }
+                    //txt = "@";
                 }
                 else if (m_scrollAmountPixelH > 0)
                 {// 右にスクロール（左側へ移動）
@@ -1751,9 +1763,9 @@ namespace CETextBoxControl
                     lineComment = true;
                 }
 
-                // 文字色を設定
-                oldTextColor = (int)CEWin32Api.SetTextColor(m_hDrawDC, textColor);
-                oldBackColor = (int)CEWin32Api.SetBkColor(m_hDrawDC, backColor);
+                // 文字色と背景色を設定
+                int oldTextColor = (int)CEWin32Api.SetTextColor(m_hDrawDC, textColor);
+                int oldBackColor = (int)CEWin32Api.SetBkColor(m_hDrawDC, backColor);
 
                 // 文字を設定
                 rcClip.left = px + m_startColPos;
@@ -2151,7 +2163,8 @@ namespace CETextBoxControl
                         //int clip_x = (m_viewDispCol * m_ShareData.m_charWidthPixel) - m_scrollAmountPixelH + m_startColPos;
                         //int clip_x = cRect.right + offsetX - m_vScrollBar.Width;
                         //int clip_x = cRect.right - m_startColPos - (m_viewDispCol * m_ShareData.m_charWidthPixel) + offsetX;
-                        int clip_x = m_startColPos + ((m_viewDispCol - m_ShareData.m_scrollColSpage) * m_ShareData.m_charWidthPixel) + offsetX;
+                        int clip_x = m_startColPos + ((m_viewDispCol - m_ShareData.m_scrollColSpage) * m_ShareData.m_charWidthPixel) + offsetX
+                            - (m_ShareData.m_charWidthPixel);  // ← 全角文字が半角1文字分移動した場合に、残りの半角1文字分を描画するため
                         Rectangle rctgl = new Rectangle(
                                         clip_x,                 // 左上のＸ座行
                                         0,                      // 左上のＹ座標
@@ -2167,7 +2180,6 @@ namespace CETextBoxControl
 
             return;
         }
-
         /// <summary>
         /// キャレット表示 
         /// </summary>
@@ -2841,36 +2853,6 @@ namespace CETextBoxControl
                 m_caretPositionPixel.X = m_doc.GetTextPixel(m_ShareData.m_nColumnSpace, str);
             }
 #if false
-            }
-#endif
-#if true
-#if false
-            // ■■■ m_scrollAmountNumVとm_scrollAmountNumHを使用しないようにできないか ■■■
-
-            // ★★★ 垂直スクロールの場合と同様に、描画行数はこの時点で設定しておく必要がある ★★★
-            // 画面より左右にあるか
-            if ((m_caretPositionChar > m_viewLeftCol + m_viewDispCol - m_ShareData.m_scrollColSpage) ||
-                ((m_caretPositionChar < m_viewLeftCol + m_ShareData.m_scrollColSpage) && 
-                 (m_caretPositionChar > m_ShareData.m_scrollColSpage)))
-            {
-                // 描画行数を保存（半角数単位）
-                // +1は、1列移動した場合、現れた列＋カーソル列も描画する必要があるため
-                // ★★★+1としているが、タブ幅が考慮されていない。。。
-                if (0 < nPos) m_scrollAmountNumH = nPos + 1;
-                else if (0 > nPos) m_scrollAmountNumH = nPos - 1;
-            }
-#endif
-#else
-            // ★★★ ここ間違い！
-            // ★★★ 移動したら「m_scrollAmountNumH」に値を設定するのではなく、
-            // ★★★ スクロールしたら入れる
-
-            if (m_curCaretColPosPixel != m_caretPositionPixel.X)
-            {
-                // 保存中の移動前のピクセルと、位置(X軸)が変わったら移動したということ
-
-                // 何キャラ分移動したか
-                m_scrollAmountNumH = (m_caretPositionPixel.X - m_curCaretColPosPixel) / m_ShareData.m_charWidthPixel +1;
             }
 #endif
 
