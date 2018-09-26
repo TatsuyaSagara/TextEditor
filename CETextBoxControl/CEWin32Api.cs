@@ -6,6 +6,7 @@
 using System;
 using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Text;
 using Debug = System.Diagnostics.Debug;
 
 namespace CETextBoxControl
@@ -781,6 +782,9 @@ namespace CETextBoxControl
         public static extern IntPtr CallWindowProc(IntPtr wndProc, IntPtr window, Int32 message, IntPtr wParam, IntPtr lParam);
 
         [DllImport("user32.dll")]
+        public static extern IntPtr DefWindowProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam);
+
+        [DllImport("user32.dll")]
         public static extern bool GetCaretPos(out POINT lpPoint);
 
         //[DllImport("gdi32.dll")]
@@ -806,8 +810,11 @@ namespace CETextBoxControl
 
         [DllImport("Imm32.dll", SetLastError = true)]
         public static extern IntPtr ImmGetContext(IntPtr hWnd);
-        //[DllImport("imm32.dll", CharSet = CharSet.Unicode)]
+        [DllImport("imm32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        public static extern int ImmGetCompositionString(IntPtr hIMC, int dwIndex, StringBuilder lpBuf, int dwBufLen);
         //public static extern int ImmGetCompositionString(IntPtr hIMC, uint dwIndex, char[] lpBuf, uint dwBufLen);
+        //[DllImport("Imm32.dll")]
+        //public static extern int ImmGetCompositionString(int hIMC, int dwIndex, StringBuilder lpBuf, int dwBufLen);
         [DllImport("Imm32.dll")]
         public static extern bool ImmReleaseContext(IntPtr hWnd, IntPtr hIMC);
         [DllImport("Imm32.dll")]
@@ -818,6 +825,28 @@ namespace CETextBoxControl
         public static extern bool ImmSetCompositionWindow(IntPtr hIMC, ref COMPOSITIONFORM lpCompForm);
         //[DllImport("imm32.dll")]
         //public static extern int ImmSetCompositionStringW(IntPtr himc, int dwIndex, IntPtr lpComp, int dw, int lpRead, int dw2);
+
+        public const int GCS_RESULTREADSTR = 0x0200;
+
+        // コンテキスト・ハンドルの取得
+        [DllImport("Imm32.dll")]
+        private static extern int ImmGetContext(int hWnd);
+
+        // コンテキスト・ハンドルの解放
+        [DllImport("Imm32.dll")]
+        public static extern int ImmReleaseContext(int hWnd, int hIMC);
+
+        // IMEより読みなどの文字列を取得する
+        [DllImport("Imm32.dll")]
+        public static extern int ImmGetCompositionString(int hIMC, int dwIndex, StringBuilder lpBuf, int dwBufLen);
+
+        // IMEの状態取得
+        [DllImport("Imm32.dll")]
+        public static extern int ImmGetOpenStatus(int hIMC);
+
+        [DllImport("kernel32.dll")]
+        public static extern IntPtr GlobalAlloc(uint uFlags, uint dwBytes);
+        public const uint GMEM_ZEROINIT = 0x0040;
 
         [DllImport("kernel32.dll")]
         public static extern IntPtr GlobalLock(IntPtr hMem);

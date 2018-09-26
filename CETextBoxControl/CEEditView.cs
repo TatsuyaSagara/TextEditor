@@ -730,7 +730,7 @@ namespace CETextBoxControl
                     // キー押下
                     case CEWin32Api.WM_KEYDOWN:
                         DownKey(wParam);
-                        break;
+                        return IntPtr.Zero;
                     // マウスホイール
                     case CEWin32Api.WM_MOUSEWHEEL:
                         float mouseScrollAmount = CEConstants.MAMouseScroll * CEWin32Api.GET_WHEEL_DELTA_WPARAM(wParam) / CEWin32Api.WHEEL_DELTA;
@@ -778,6 +778,29 @@ namespace CETextBoxControl
                     case CEWin32Api.WM_IME_STARTCOMPOSITION:
                         ime.SetCompositionWindow(this.Handle, m_ShareData.m_font);
                         break;
+                    // IME関連
+                    // （キーストロークにより編集状態が変化した場合に送られてくる）
+                    case CEWin32Api.WM_IME_COMPOSITION:
+                        if ((lParam.ToInt32() & CEWin32Api.GCS_RESULTSTR) > 0)
+                        {
+                            // 文字が確定した場合文章を表示し確定させる
+                            IntPtr hIMC = CEWin32Api.ImmGetContext(this.Handle);
+                            if (hIMC != null)
+                            {
+                                int nTextLength = CEWin32Api.ImmGetCompositionString(hIMC, CEWin32Api.GCS_RESULTSTR, null, 0);
+                                if (nTextLength > 0)
+                                {
+                                    StringBuilder sb = new StringBuilder(nTextLength);
+                                    sb.Append(new char[nTextLength]);
+                                    CEWin32Api.ImmGetCompositionString(hIMC, CEWin32Api.GCS_RESULTSTR, sb, nTextLength);
+                                    StringKey(sb.ToString());
+                                }
+                                CEWin32Api.ImmReleaseContext(this.Handle, hIMC);
+                            }
+                        }
+                        return CEWin32Api.DefWindowProc(this.Handle, (uint)message, wParam, lParam);
+                    case CEWin32Api.WM_IME_CHAR:
+                        return IntPtr.Zero;
                     default:
                         break;
                 }
@@ -2755,7 +2778,7 @@ namespace CETextBoxControl
         /// <summary>
         /// 横移動
         /// </summary>
-        /// <param name="nPos">移動量（文字指定）</param>
+        /// <param name="nPos">移動量（文字単位）</param>
         private void GetCaretPositionH(int nPos)
         {
             // 移動量が0の場合は何もしない
@@ -2777,13 +2800,13 @@ namespace CETextBoxControl
             }
 
             // 範囲選択から未選択になったか確認するために確保しておく
-            int CurrentSelectStatus = m_selectType;
+            int oldSelectStatus = m_selectType;
 
             // 選択範囲の開始位置取得
             StarRange();
 
             // 範囲選択→範囲未選択に移行した場合、選択状態をクリアする
-            if (CurrentSelectStatus != m_selectType && m_selectType == NONE_RANGE_SELECT/* && m_scrollAmountNumV == 0*/)
+            if (oldSelectStatus != m_selectType && m_selectType == NONE_RANGE_SELECT/* && m_scrollAmountNumV == 0*/)
             {
                 // 全画面更新対象
                 CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
@@ -2852,9 +2875,6 @@ namespace CETextBoxControl
                 // 取得した文字列のピクセル数を取得
                 m_caretPositionPixel.X = m_doc.GetTextPixel(m_ShareData.m_nColumnSpace, str);
             }
-#if false
-            }
-#endif
 
             // 選択範囲の終了位置取得
             EndRange();
@@ -3371,6 +3391,11 @@ namespace CETextBoxControl
             //DrawTextList();
         }
 
+        private void StringKey(string imeStr)
+        {
+            CharView(imeStr);
+        }
+
         /// <summary>
         /// キャラクターキー
         /// </summary>
@@ -3384,55 +3409,54 @@ namespace CETextBoxControl
                 return;
             }
 
+            // 選択範囲の文字列を削除
             if (m_selectType != NONE_RANGE_SELECT)
             {
-                // 選択範囲の文字列を削除
                 DeleteRange();
             }
-
-            /*****************************************************/
-            /* Undo / Redo アンドゥ リドゥ                       */
-            /*****************************************************/
-            UndoRedoOpe.PreUndoRedo(m_caretPositionP, m_selectType, this);
 
             //int nVKey = (int)wParam;
             char c = Convert.ToChar(nVKey);
             string newChar = c.ToString();
 
-#if false // 改行が来ることはないのでコメント
-            // 改行の場合何もしない
-            if (newChar != "\r" && newChar != "\n" && newChar != "\b")
-            {
-#endif
-                m_doc.InsertLineTextP(m_caretPositionP.Y/*m_caretStrBufRow*/, m_caretPositionP.X/*m_caretStrBufColumn*/, newChar);
-                CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, false); // WM_PAINTが実行される。
-                //this.Refresh();
-                //this.SetTextData();
+            CharView(newChar);
+        }
+
+        private void CharView(string newChar)
+        {
+            /*****************************************************/
+            /* Undo / Redo アンドゥ リドゥ                       */
+            /*****************************************************/
+            UndoRedoOpe.PreUndoRedo(m_caretPositionP, m_selectType, this);
+
+            // 入力文字挿入
+            m_doc.InsertLineTextP(m_caretPositionP.Y, m_caretPositionP.X, newChar);
+            CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true); // WM_PAINTが実行される。
+            this.Update();
+            //this.Refresh();
+            //this.SetTextData();
 #if false
-                if (m_editLine.IndexOf(m_caretStrBuf.Y + 1) == -1) {
-                    m_editLine.Add(m_caretStrBuf.Y + 1);
-                }
-#endif
-                LayoutScrollBar(); // スクロールバー再配置
-                GetCaretPositionH(newChar.Length); // 入力文字数分カーソルキー移動
-
-                /*****************************************************/
-                /* Undo / Redo アンドゥ リドゥ                       */
-                /*****************************************************/
-                UndoRedoOpe.ProUndoRedo(m_caretPositionP, UndoRedoCode.UR_INSERT, newChar, this);
-
-                // スクロールバー再配置
-                LayoutScrollBar();
-
-                // 画面外表示位置移動
-                DispPosMove();
-
-                // 再描画
-                CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
-                //this.Refresh();
-#if false
+            if (m_editLine.IndexOf(m_caretStrBuf.Y + 1) == -1) {
+                m_editLine.Add(m_caretStrBuf.Y + 1);
             }
 #endif
+            //LayoutScrollBar(); // スクロールバー再配置
+            GetCaretPositionH(newChar.Length); // 入力文字数分カーソルキー移動
+            this.Update();
+            /*****************************************************/
+            /* Undo / Redo アンドゥ リドゥ                       */
+            /*****************************************************/
+            UndoRedoOpe.ProUndoRedo(m_caretPositionP, UndoRedoCode.UR_INSERT, newChar, this);
+
+            // スクロールバー再配置
+            //LayoutScrollBar();
+
+            // 画面外表示位置移動
+            //DispPosMove();
+
+            // 再描画
+            //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            //this.Refresh();
         }
 
         /// <summary>
