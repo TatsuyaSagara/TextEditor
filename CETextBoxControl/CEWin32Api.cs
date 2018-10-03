@@ -619,6 +619,9 @@ namespace CETextBoxControl
         [DllImport("user32.dll")]
         public static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
 
+        [DllImport("user32.dll", SetLastError = false)]
+        public static extern IntPtr GetDesktopWindow();
+
         [DllImport("gdi32.dll")]
         public static extern uint SetBkColor(IntPtr hdc, int crColor);
 

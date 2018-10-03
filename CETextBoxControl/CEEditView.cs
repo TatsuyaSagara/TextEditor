@@ -28,64 +28,6 @@ namespace CETextBoxControl
         public string encode; // エンコード
     }
 
-#if false
-    /// <summary>
-    /// キャレットの位置
-    /// X/Y：現在のキャレット位置
-    /// BX/BY：ひとつ前のキャレット位置
-    /// </summary>
-    public class caretPoint
-    {
-        private int x, y;
-        private int bx, by;
-        public int X
-        {
-            set
-            {
-                bx = x;
-                x = value;
-            }
-            get { return x; }
-        }
-        public int Y
-        {
-            set
-            {
-                by = y;
-                y = value;
-            }
-            get { return y; }
-        }
-        public int BX
-        {
-            get { return bx; }
-        }
-        public int BY
-        {
-            get { return by; }
-        }
-
-        // コンストラクタ
-        public caretPoint()
-        {
-            x = -1;
-            y = -1;
-            bx = -1;
-            by = -1;
-            CECommon.print("----------------------> caretPoint Constractor");
-        }
-
-        // Point型に変換
-        public Point ToPoint()
-        {
-            Point p = new Point();
-            p.X = x;
-            p.Y = y;
-            return p;
-        }
-    }
-#endif
-
     public class CEEditView : Control
     {
         // ★データ管理用クラスへ移行予定のメソッド★★★★★★★★★★★★★★★★★★★★
@@ -513,6 +455,15 @@ namespace CETextBoxControl
             // タイマー生成
             timer.Tick += new EventHandler(this.OnTick_FormsTimer);
             timer.Interval = 350;
+
+            // 描画領域設定
+            CEWin32Api.RECT rec;
+            CEWin32Api.GetClientRect(CEWin32Api.GetDesktopWindow()/*this.Handle*/, out rec);
+            IntPtr hdc = CEWin32Api.GetDC(this.Handle);
+            IntPtr hDrawBmp = CEWin32Api.CreateCompatibleBitmap(hdc, rec.right, rec.bottom);
+            CEWin32Api.ReleaseDC(this.Handle, hdc);
+            //CEWin32Api.DeleteObject(hDrawBmp);
+            CEWin32Api.SelectObject(m_hDrawDC, hDrawBmp);
         }
 
         /// <summary>
@@ -680,12 +631,12 @@ namespace CETextBoxControl
         /// カスタムウィンドウプロシージャ
         /// すべてのイベントを受け付けるため
         /// </summary>
-        /// <param name="window"></param>
+        /// <param name="hWnd"></param>
         /// <param name="message"></param>
         /// <param name="wParam"></param>
         /// <param name="lParam"></param>
         /// <returns></returns>
-        private IntPtr CustomWndProc(IntPtr window, Int32 message, IntPtr wParam, IntPtr lParam)
+        private IntPtr CustomWndProc(IntPtr hWnd, Int32 message, IntPtr wParam, IntPtr lParam)
         {
             try
             {
@@ -721,11 +672,11 @@ namespace CETextBoxControl
                         break;
                     // 描画
                     case CEWin32Api.WM_PAINT:
-                        DrawTextList();
+                        OnPaint(hWnd);
                         break;
                     // 文字入力
                     case CEWin32Api.WM_CHAR:
-                        CharKey((int)wParam);
+                        CharKey(hWnd, (int)wParam);
                         break;
                     // キー押下
                     case CEWin32Api.WM_KEYDOWN:
@@ -793,7 +744,7 @@ namespace CETextBoxControl
                                     StringBuilder sb = new StringBuilder(nTextLength);
                                     sb.Append(new char[nTextLength]);
                                     CEWin32Api.ImmGetCompositionString(hIMC, CEWin32Api.GCS_RESULTSTR, sb, nTextLength);
-                                    StringKey(sb.ToString());
+                                    StringView(hWnd, sb.ToString()); // 確定文字列の画面出力
                                 }
                                 CEWin32Api.ImmReleaseContext(this.Handle, hIMC);
                             }
@@ -811,7 +762,7 @@ namespace CETextBoxControl
                 MessageBox.Show(ex.ToString(), "!!! Text Editor Fail. !!!");
             }
 
-            return CEWin32Api.CallWindowProc(m_originalWndProcObj, window, message, wParam, lParam);
+            return CEWin32Api.CallWindowProc(m_originalWndProcObj, hWnd, message, wParam, lParam);
         }
 
         /// <summary>
@@ -1048,7 +999,7 @@ namespace CETextBoxControl
                 if (cdet.Charset == null)
                 {
                     // 読み込むファイルの文字コード取得（再チャレンジ）
-                    enc = CECommon.GetCode(File.ReadAllBytes(file));
+                    enc = CECommon.GetEncoding(File.ReadAllBytes(file));
                     if (enc == null)
                     {
                         // 2回チェックしてダメなら仕方ない...。
@@ -2277,9 +2228,10 @@ namespace CETextBoxControl
             int cx = m_nowPosX - screenPosX;
             int cy = m_nowPosY - screenPosY;
 
-            int hiddenPixelSize = m_viewLeftCol * m_ShareData.m_charWidthPixel;
-            m_caretPositionPixel.X = cx + hiddenPixelSize;
-            m_caretPositionPixel.Y = cy;
+            int hiddenPixelSizeH = m_viewLeftCol * m_ShareData.m_charWidthPixel;
+            int hiddenPixelSizeV = m_viewTopRowL * m_ShareData.m_charHeightPixel;
+            m_caretPositionPixel.X = cx + hiddenPixelSizeH;
+            m_caretPositionPixel.Y = cy + hiddenPixelSizeV;
 
             CEWin32Api.CreateCaret(this.Handle, IntPtr.Zero, 2, m_ShareData.m_charHeightPixel);
             CEWin32Api.SetCaretPos(cx + m_startColPos, cy + m_startRowPos);
@@ -3388,18 +3340,13 @@ namespace CETextBoxControl
             // 再描画
             CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
             //this.Refresh();
-            //DrawTextList();
-        }
-
-        private void StringKey(string imeStr)
-        {
-            CharView(imeStr);
+            //OnPaint();
         }
 
         /// <summary>
         /// キャラクターキー
         /// </summary>
-        private void CharKey(int nVKey)
+        private void CharKey(IntPtr hWnd, int nVKey)
         {
             // Ctrlとのコンビネーションキーは何もしない
             // 暫定対応
@@ -3409,60 +3356,61 @@ namespace CETextBoxControl
                 return;
             }
 
+            //int nVKey = (int)wParam;
+            char c = Convert.ToChar(nVKey);
+            string newChar = c.ToString();
+
+            StringView(hWnd, newChar);
+        }
+
+        /// <summary>
+        /// 文字列を現在のキャレット位置に出力
+        /// </summary>
+        /// <param name="newChar"></param>
+        private void StringView(IntPtr hWnd, string newChar)
+        {
             // 選択範囲の文字列を削除
             if (m_selectType != NONE_RANGE_SELECT)
             {
                 DeleteRange();
             }
 
-            //int nVKey = (int)wParam;
-            char c = Convert.ToChar(nVKey);
-            string newChar = c.ToString();
-
-            CharView(newChar);
-        }
-
-        private void CharView(string newChar)
-        {
             /*****************************************************/
             /* Undo / Redo アンドゥ リドゥ                       */
             /*****************************************************/
             UndoRedoOpe.PreUndoRedo(m_caretPositionP, m_selectType, this);
 
-            // 入力文字挿入
+            // 内部バッファに入力文字挿入
             m_doc.InsertLineTextP(m_caretPositionP.Y, m_caretPositionP.X, newChar);
-            CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true); // WM_PAINTが実行される。
-            this.Update();
-            //this.Refresh();
-            //this.SetTextData();
-#if false
-            if (m_editLine.IndexOf(m_caretStrBuf.Y + 1) == -1) {
-                m_editLine.Add(m_caretStrBuf.Y + 1);
-            }
-#endif
-            //LayoutScrollBar(); // スクロールバー再配置
+
+            // ★本当は無駄な処理。理想は追加された場所のみ西行がされることが望ましい
+            // ★キー入力した場合、1文字毎に再描画されるので遅延が発生する！！！
+            Size sz;
+            CEWin32Api.GetTextExtentPoint32(m_hDrawDC, newChar, newChar.Length, out sz);
+
+            CEWin32Api.RECT cRect;
+            CEWin32Api.GetClientRect(this.Handle, out cRect); // クライアント領域サイズ取得
+            Rectangle rctgl = new Rectangle(
+                            m_caretPositionPixel.X - (m_viewLeftCol * m_ShareData.m_charWidthPixel) + m_startColPos,                  // 左上のＸ座行
+                            m_caretPositionPixel.Y - (m_viewTopRowP * m_ShareData.m_charHeightPixel) + m_rulerHeightPixel,                 // 左上のＹ座標
+                            m_caretPositionPixel.X - (m_viewLeftCol * m_ShareData.m_charWidthPixel) + m_startColPos + sz.Width,       // 右下のＸ座標
+                            m_caretPositionPixel.Y - (m_viewTopRowP * m_ShareData.m_charHeightPixel) + m_rulerHeightPixel + sz.Height);    // 右下のＹ座標
+            IntPtr pptrRect = CECommon.RectangleToIntPtr(rctgl);
+            CEWin32Api.InvalidateRect(this.Handle, pptrRect, true);
+
             GetCaretPositionH(newChar.Length); // 入力文字数分カーソルキー移動
-            this.Update();
+            OnPaint(hWnd);
+
             /*****************************************************/
             /* Undo / Redo アンドゥ リドゥ                       */
             /*****************************************************/
             UndoRedoOpe.ProUndoRedo(m_caretPositionP, UndoRedoCode.UR_INSERT, newChar, this);
-
-            // スクロールバー再配置
-            //LayoutScrollBar();
-
-            // 画面外表示位置移動
-            //DispPosMove();
-
-            // 再描画
-            //CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
-            //this.Refresh();
         }
 
         /// <summary>
         /// 描画
         /// </summary>
-        private void DrawTextList()
+        private void OnPaint(IntPtr hWnd)
         {
             try
             {
@@ -3472,15 +3420,17 @@ namespace CETextBoxControl
                 //CEWin32Api.RectVisible(m_hDrawDC, out rec);
                 //CECommon.print("top:" + rec.top + "/bottom:" + rec.bottom + "/right:" + rec.right + "/left:" + rec.left);
 
+#if false
                 // 描画領域設定
-                CEWin32Api.GetClientRect(this.Handle, out rec);
+                CEWin32Api.GetClientRect(CEWin32Api.GetDesktopWindow()/*this.Handle*/, out rec);
                 IntPtr hdc = CEWin32Api.GetDC(this.Handle);
                 IntPtr hDrawBmp = CEWin32Api.CreateCompatibleBitmap(hdc, rec.right, rec.bottom);
-                CEWin32Api.SelectObject(m_hDrawDC, hDrawBmp);
                 CEWin32Api.ReleaseDC(this.Handle, hdc);
-                CEWin32Api.DeleteObject(hDrawBmp);
-
+                //CEWin32Api.DeleteObject(hDrawBmp);
+                CEWin32Api.SelectObject(m_hDrawDC, hDrawBmp);
+#endif
                 // 背景色を白に設定
+                CEWin32Api.GetClientRect(hWnd, out rec);
                 IntPtr hDefBrush = CEWin32Api.SelectObject(m_hDrawDC, CEWin32Api.CreateSolidBrush(CEConstants.BackColor));
                 CEWin32Api.PatBlt(m_hDrawDC, 0, 0, rec.right, rec.bottom, CEWin32Api.TernaryRasterOperations.PATCOPY);
                 CEWin32Api.SelectObject(m_hDrawDC, hDefBrush);
@@ -3517,9 +3467,9 @@ namespace CETextBoxControl
                 //sw.Restart();
 
                 // 描画（ビットマップ転送）
-                IntPtr hDC = CEWin32Api.BeginPaint(this.Handle, out ps);
+                IntPtr hDC = CEWin32Api.BeginPaint(hWnd, out ps);
                 CEWin32Api.BitBlt(hDC, 0, 0, rec.right, rec.bottom, m_hDrawDC, 0, 0, CEWin32Api.TernaryRasterOperations.SRCCOPY);
-                CEWin32Api.EndPaint(this.Handle, ref ps);
+                CEWin32Api.EndPaint(hWnd, ref ps);
 
                 // キャレットの現在位置を通知
                 if (CaretPos != null)
@@ -3562,6 +3512,7 @@ namespace CETextBoxControl
                 string lineNumStr = "";
                 // 画面表示幅をピクセル単位で取得（未使用）
                 //m_screenWidthPixel = m_viewDispCol * (m_ShareData.m_nColumnSpace + m_ShareData.m_charWidthPixel);
+                // 画面の行数分ループ（ループ回数を+1して表示しきれない文字も描画する）
                 for (int index = 0; index < m_viewDispRow + 1; index++)
                 {
                     int row = index + m_viewTopRowP;
@@ -3640,7 +3591,7 @@ namespace CETextBoxControl
             } // try
             catch (Exception e)
             {
-                Console.Write("描画（DrawTextList()）で例外発生：" + e);
+                Console.Write("描画（OnPaint()）で例外発生：" + e);
             }
 
 #if true // 高速化テスト

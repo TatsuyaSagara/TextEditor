@@ -52,7 +52,12 @@ namespace CETextBoxControl
             return bbb;
         }
 
-        public static Encoding GetCode(byte[] bytes)
+        /// <summary>
+        /// エンコードタイプ取得
+        /// </summary>
+        /// <param name="bytes"></param>
+        /// <returns></returns>
+        public static Encoding GetEncoding(byte[] bytes)
         {
             const byte bEscape = 0x1B;
             const byte bAt = 0x40;
