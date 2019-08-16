@@ -2236,6 +2236,8 @@ namespace CETextBoxControl
 
             CEWin32Api.CreateCaret(this.Handle, IntPtr.Zero, 2, m_ShareData.m_charHeightPixel);
             CEWin32Api.SetCaretPos(cx + m_startColPos, cy + m_startRowPos);
+            //CEWin32Api.CreateCaret(this.Handle, IntPtr.Zero, m_ShareData.m_charWidthPixel, m_ShareData.m_charHeightPixel/2);
+            //CEWin32Api.SetCaretPos(cx + m_startColPos, cy + m_startRowPos + m_ShareData.m_charHeightPixel / 2);
             CEWin32Api.ShowCaret(this.Handle);
 
             //// アンダーバー表示（横線）
@@ -2556,7 +2558,7 @@ namespace CETextBoxControl
             int aaa = m_caretPositionP.Y - m_scrollAmountNumV;
 
             // 無効リージョンを設定し再描画
-            if (m_scrollAmountNumV != 0) // 【上下スクロール】の場合
+            if (m_scrollAmountNumV != 0) // 上下スクロールの場合
             {
                 CEWin32Api.RECT rc;
                 CEWin32Api.GetClientRect(this.Handle, out rc);
@@ -2565,12 +2567,12 @@ namespace CETextBoxControl
                 int w = rc.right;
                 int h = rc.bottom;
 
-                if (m_scrollAmountNumV > 0) // 【下スクロール（画面上移動）】の場合
+                if (m_scrollAmountNumV > 0) // 上にスクロール（下に移動）
                 {
                     y = (m_viewDispRow - m_scrollAmountNumV) * m_ShareData.m_charHeightPixel + m_rulerHeightPixel;
                     h = rc.bottom;
                 }
-                else if (m_scrollAmountNumV < 0) // 【上スクロール（画面下移動）】の場合
+                else if (m_scrollAmountNumV < 0) // 下にスクロール（上に移動）
                 {
                     y = 0;
                     h = -m_scrollAmountNumV * m_ShareData.m_charHeightPixel + m_rulerHeightPixel;
@@ -2579,7 +2581,7 @@ namespace CETextBoxControl
                 IntPtr ptrRect = CECommon.RectangleToIntPtr(rctgl); // RectangleからIntPtrへ変換
                 CEWin32Api.InvalidateRect(this.Handle, ptrRect, true);
             }
-            else if ((m_selectType != NONE_RANGE_SELECT && m_scrollAmountNumV == 0)) // 【選択状態】かつ【上下スクロールでない】の場合は、全画面再描画する（遅くなっちゃうけど）
+            else if ((m_selectType != NONE_RANGE_SELECT && m_scrollAmountNumV == 0)) // 選択状態かつ上下スクロールでないの場合、全画面再描画する（遅くなっちゃうけど）
             {
                 // クライアント領域全体を無効化し全クライアント画面を再描画
                 CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
@@ -2888,6 +2890,7 @@ namespace CETextBoxControl
                 // 再描画
                 CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
             }
+            CEWin32Api.UpdateWindow(this.Handle);
         }
 
         /// <summary>
