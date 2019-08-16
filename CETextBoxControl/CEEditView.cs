@@ -1760,6 +1760,7 @@ namespace CETextBoxControl
             return px;
         }
 
+#if false // どこからも呼び出されていない
         // テキスト反転
         private void DispTextSelected(CEWin32Api.RECT clip/*, int color*/)
         {
@@ -1788,6 +1789,7 @@ namespace CETextBoxControl
             //SelectObject(hdc, hBrushOld);
             //DeleteObject(hBrush);
         }
+#endif
 
         private bool isLineComment(string str, int length)
         {
@@ -1964,7 +1966,6 @@ namespace CETextBoxControl
         /// <param name="aLine">全行数（折り返しなし：論理行数／折り返しあり：物理行数）</param>
         private void MoveScrollV(int nPos, int aLine, bool refreshFlag)
         {
-
             // EOFも含めた行数取得
             int allLine;
             if (aLine == -1)
@@ -1992,7 +1993,7 @@ namespace CETextBoxControl
                 unsafe // アンマネージコード
                 {
                     CEWin32Api.RECT cRect;
-                    int offsetY = -nPos * m_ShareData.m_charHeightPixel;
+                    int offsetY = -nPos * m_ShareData.m_charHeightPixel; // 移動(スクロール)するピクセル数
                     CEWin32Api.GetClientRect(this.Handle, out cRect);
                     cRect.top = m_rulerHeightPixel; // ルーラはスクロール及び再描画対象外
                     if (offsetY > 0)
@@ -2035,8 +2036,8 @@ namespace CETextBoxControl
                                         CEWin32Api.SW_INVALIDATE | CEWin32Api.SW_ERASE);
 
                         // InvalidateRect
-                        // （表示行数(欠けている行は省く) ＊ フォントの高さ ＋ ルーラの高さ） － 縦スクロール描画ピクセル数
-                        int clip_y = (m_viewDispRow * m_ShareData.m_charHeightPixel + m_rulerHeightPixel) - m_scrollAmountPixelV;
+                        // （表示行数(欠けている行は省く) ＊ フォントの高さ ＋ ルーラの高さ） － 横スクロール描画ピクセル数
+                        int clip_y = (m_viewDispRow * m_ShareData.m_charHeightPixel + m_rulerHeightPixel) - m_scrollAmountPixelH;
                         Rectangle rctgl = new Rectangle(
                                         0,                      // 左上のＸ座行
                                         clip_y,                 // 左上のＹ座標
@@ -2045,7 +2046,7 @@ namespace CETextBoxControl
                         IntPtr ptrRect = CECommon.RectangleToIntPtr(rctgl); // RectangleからIntPtrへ変換
                         CEWin32Api.InvalidateRect(this.Handle, ptrRect, true);
                     }
-                }
+                } 
             }
 
             return;
@@ -2552,12 +2553,38 @@ namespace CETextBoxControl
             //// キャレット位置保存
             //m_prevCaretPixel = m_caretPositionPixel;
 
-            // 【選択状態】かつ【上下スクロールでない】の場合は、全画面再描画する（遅くなっちゃうけど）
-            if ((m_selectType != NONE_RANGE_SELECT && m_scrollAmountNumV == 0))
+            int aaa = m_caretPositionP.Y - m_scrollAmountNumV;
+
+            // 無効リージョンを設定し再描画
+            if (m_scrollAmountNumV != 0) // 【上下スクロール】の場合
             {
-                // 再描画
+                CEWin32Api.RECT rc;
+                CEWin32Api.GetClientRect(this.Handle, out rc);
+                int x = 0;
+                int y = 0;
+                int w = rc.right;
+                int h = rc.bottom;
+
+                if (m_scrollAmountNumV > 0) // 【下スクロール（画面上移動）】の場合
+                {
+                    y = (m_viewDispRow - m_scrollAmountNumV) * m_ShareData.m_charHeightPixel + m_rulerHeightPixel;
+                    h = rc.bottom;
+                }
+                else if (m_scrollAmountNumV < 0) // 【上スクロール（画面下移動）】の場合
+                {
+                    y = 0;
+                    h = -m_scrollAmountNumV * m_ShareData.m_charHeightPixel + m_rulerHeightPixel;
+                }
+                Rectangle rctgl = new Rectangle(x, y, w, h);
+                IntPtr ptrRect = CECommon.RectangleToIntPtr(rctgl); // RectangleからIntPtrへ変換
+                CEWin32Api.InvalidateRect(this.Handle, ptrRect, true);
+            }
+            else if ((m_selectType != NONE_RANGE_SELECT && m_scrollAmountNumV == 0)) // 【選択状態】かつ【上下スクロールでない】の場合は、全画面再描画する（遅くなっちゃうけど）
+            {
+                // クライアント領域全体を無効化し全クライアント画面を再描画
                 CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
             }
+            CEWin32Api.UpdateWindow(this.Handle);
         }
 
         /// <summary>
@@ -3435,13 +3462,13 @@ namespace CETextBoxControl
                 CEWin32Api.PatBlt(m_hDrawDC, 0, 0, rec.right, rec.bottom, CEWin32Api.TernaryRasterOperations.PATCOPY);
                 CEWin32Api.SelectObject(m_hDrawDC, hDefBrush);
 
-                Stopwatch sw = new Stopwatch();
-                sw.Start();
+                //Stopwatch sw = new Stopwatch();
+                //sw.Start();
 
                 // 描画する画面を設定
                 this.SetTextData();
 
-                sw.Stop();
+                //sw.Stop();
                 //Console.WriteLine("描画する画面を設定:" + sw.Elapsed);
                 //sw.Restart();
 
