@@ -84,9 +84,9 @@ namespace TextEditor
             this.StatusLabel_CaretX,
             this.StatusLabel_CaretY,
             this.toolStripDropDownBtn});
-            this.StatusBar.Location = new System.Drawing.Point(0, 656);
+            this.StatusBar.Location = new System.Drawing.Point(0, 906);
             this.StatusBar.Name = "StatusBar";
-            this.StatusBar.Size = new System.Drawing.Size(658, 24);
+            this.StatusBar.Size = new System.Drawing.Size(858, 24);
             this.StatusBar.TabIndex = 0;
             // 
             // StatusLabel_CaretX
@@ -131,7 +131,7 @@ namespace TextEditor
             this.menuStrip1.Location = new System.Drawing.Point(0, 0);
             this.menuStrip1.Name = "menuStrip1";
             this.menuStrip1.Padding = new System.Windows.Forms.Padding(0);
-            this.menuStrip1.Size = new System.Drawing.Size(658, 24);
+            this.menuStrip1.Size = new System.Drawing.Size(858, 24);
             this.menuStrip1.TabIndex = 4;
             this.menuStrip1.Text = "menuStrip1";
             // 
@@ -416,7 +416,7 @@ namespace TextEditor
             this.tabPanel.BackColor = System.Drawing.Color.DarkGray;
             this.tabPanel.Location = new System.Drawing.Point(0, 24);
             this.tabPanel.Name = "tabPanel";
-            this.tabPanel.Size = new System.Drawing.Size(658, 22);
+            this.tabPanel.Size = new System.Drawing.Size(858, 22);
             this.tabPanel.TabIndex = 6;
             this.tabPanel.Paint += new System.Windows.Forms.PaintEventHandler(this.TabPanelPaintEvent);
             // 
@@ -426,7 +426,7 @@ namespace TextEditor
             this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
             this.BackColor = System.Drawing.Color.Silver;
-            this.ClientSize = new System.Drawing.Size(658, 680);
+            this.ClientSize = new System.Drawing.Size(858, 930);
             this.Controls.Add(this.tabPanel);
             this.Controls.Add(this.StatusBar);
             this.Controls.Add(this.menuStrip1);
