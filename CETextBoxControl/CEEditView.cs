@@ -432,7 +432,7 @@ namespace CETextBoxControl
         {
             // オフスクリーン描画用デバイスコンテキスト作成
             // ★解放のタイミングわからず。アプリ終了するまで解放しないからほっといていいのかな？
-            m_hDrawDC = CEWin32Api.CreateCompatibleDC((IntPtr)0);
+            //m_hDrawDC = CEWin32Api.CreateCompatibleDC((IntPtr)0);
 
             // 初期化
             Init();
@@ -456,14 +456,14 @@ namespace CETextBoxControl
             timer.Tick += new EventHandler(this.OnTick_FormsTimer);
             timer.Interval = 350;
 
-            // 描画領域設定
-            CEWin32Api.RECT rec;
-            CEWin32Api.GetClientRect(CEWin32Api.GetDesktopWindow()/*this.Handle*/, out rec);
-            IntPtr hdc = CEWin32Api.GetDC(this.Handle);
-            IntPtr hDrawBmp = CEWin32Api.CreateCompatibleBitmap(hdc, rec.right, rec.bottom);
-            CEWin32Api.ReleaseDC(this.Handle, hdc);
-            //CEWin32Api.DeleteObject(hDrawBmp);
-            CEWin32Api.SelectObject(m_hDrawDC, hDrawBmp);
+            //// 描画領域設定
+            //CEWin32Api.RECT rec;
+            //CEWin32Api.GetClientRect(CEWin32Api.GetDesktopWindow()/*this.Handle*/, out rec);
+            //IntPtr hdc = CEWin32Api.GetDC(this.Handle);
+            //IntPtr hDrawBmp = CEWin32Api.CreateCompatibleBitmap(hdc, rec.right, rec.bottom);
+            //CEWin32Api.ReleaseDC(this.Handle, hdc);
+            ////CEWin32Api.DeleteObject(hDrawBmp);
+            //CEWin32Api.SelectObject(m_hDrawDC, hDrawBmp);
         }
 
         /// <summary>
@@ -471,12 +471,12 @@ namespace CETextBoxControl
         /// </summary>
         ~CEEditView()
         {
-            // オフスクリーン描画用オブジェクト開放
-            if (m_hDrawDC != (IntPtr)0)
-            {
-                CEWin32Api.DeleteObject(m_hDrawDC);
-                m_hDrawDC = (IntPtr)0;
-            }
+            //// オフスクリーン描画用オブジェクト開放
+            //if (m_hDrawDC != (IntPtr)0)
+            //{
+            //    CEWin32Api.DeleteObject(m_hDrawDC);
+            //    m_hDrawDC = (IntPtr)0;
+            //}
         }
 
         /// <summary>
@@ -597,6 +597,17 @@ namespace CETextBoxControl
                     }
                     CEWin32Api.SetWindowLong(this.Handle, CEWin32Api.GWLP_WNDPROC, m_customWndProcObj);
 
+                    m_hDrawDC = CEWin32Api.CreateCompatibleDC((IntPtr)0);
+
+                    // 描画領域設定
+                    CEWin32Api.RECT rec;
+                    CEWin32Api.GetClientRect(CEWin32Api.GetDesktopWindow()/*this.Handle*/, out rec);
+                    IntPtr hdc = CEWin32Api.GetDC(this.Handle);
+                    IntPtr hDrawBmp = CEWin32Api.CreateCompatibleBitmap(hdc, rec.right, rec.bottom);
+                    CEWin32Api.ReleaseDC(this.Handle, hdc);
+                    //CEWin32Api.DeleteObject(hDrawBmp);
+                    CEWin32Api.SelectObject(m_hDrawDC, hDrawBmp);
+
                     // 初期値設定
                     SetFont(m_ShareData.m_font);
                     m_ShareData.m_wrapPositionPixel = CEConstants.DefaultWrapSize;
@@ -618,7 +629,13 @@ namespace CETextBoxControl
                 case CEWin32Api.WM_DESTROY:
                     // WM_QUITメッセージを送り出しWinMain関数のループを終了する。
                     //CEWin32Api.PostQuitMessage(0);
-                    break;
+                    // オフスクリーン描画用オブジェクト開放
+                    if (m_hDrawDC != (IntPtr)0)
+                    {
+                        CEWin32Api.DeleteObject(m_hDrawDC);
+                        m_hDrawDC = (IntPtr)0;
+                    }
+                    return;
                 case CEWin32Api.WM_CLOSE:
                     break;
                 default:
@@ -751,6 +768,8 @@ namespace CETextBoxControl
                         }
                         return CEWin32Api.DefWindowProc(this.Handle, (uint)message, wParam, lParam);
                     case CEWin32Api.WM_IME_CHAR:
+                        return IntPtr.Zero;
+                    case CEWin32Api.WM_DESTROY:
                         return IntPtr.Zero;
                     default:
                         break;
@@ -1913,14 +1932,14 @@ namespace CETextBoxControl
             // 「１行目で上に移動」または「１行目で１列目で左に移動」しようとした場合、何もせず終了
             if ((m_caretPositionP.Y + nPosY < 0) || ((m_caretPositionP.Y == 0) && (m_caretPositionP.X + nPosX < 0)))
             {
-                CECommon.print("「１行目で上に移動」または「１行目で１列目で左に移動」しようとしたので何もせず終了");
+                //CECommon.print("「１行目で上に移動」または「１行目で１列目で左に移動」しようとしたので何もせず終了");
                 return;
             }
 
             // 「キャレットがEOF位置」かつ「右・下（プラス方向）に移動」しようとした場合、何もせず終了
             if ((isEofPos(m_caretPositionP.Y, m_caretPositionP.X)) && (nPosX > 0 || nPosY > 0))
             {
-                CECommon.print("「キャレットがEOF位置」かつ「右・下（プラス方向）に移動」しようとしたので何もせず終了");
+                //CECommon.print("「キャレットがEOF位置」かつ「右・下（プラス方向）に移動」しようとしたので何もせず終了");
                 return;
             }
 
@@ -1928,7 +1947,7 @@ namespace CETextBoxControl
             if ((m_selectType == RACTANGLE_RANGE_SELECT) &&
                 (m_caretPositionP.X + nPosX < 0))
             {
-                CECommon.print("「矩形選択」または「先頭から左に移動」しようとしたので何もせず終了");
+                //CECommon.print("「矩形選択」または「先頭から左に移動」しようとしたので何もせず終了");
                 return;
             }
 
@@ -3468,6 +3487,9 @@ namespace CETextBoxControl
                 //Stopwatch sw = new Stopwatch();
                 //sw.Start();
 
+                //IntPtr hDC = CEWin32Api.BeginPaint(hWnd, out ps);
+                //m_hDrawDC = CEWin32Api.CreateCompatibleDC(hDC);
+
                 // 描画する画面を設定
                 this.SetTextData();
 
@@ -3499,6 +3521,7 @@ namespace CETextBoxControl
                 // 描画（ビットマップ転送）
                 IntPtr hDC = CEWin32Api.BeginPaint(hWnd, out ps);
                 CEWin32Api.BitBlt(hDC, 0, 0, rec.right, rec.bottom, m_hDrawDC, 0, 0, CEWin32Api.TernaryRasterOperations.SRCCOPY);
+                //CEWin32Api.DeleteDC(m_hDrawDC);
                 CEWin32Api.EndPaint(hWnd, ref ps);
 
                 // キャレットの現在位置を通知
@@ -3578,7 +3601,7 @@ namespace CETextBoxControl
                                 pLine++;
                                 continue;
                             }
-                            m_scrollAmountNumV = 0;
+                            //m_scrollAmountNumV = 0; // 必要？
                         }
 
                         //Debug.WriteLine("index:" + index);
