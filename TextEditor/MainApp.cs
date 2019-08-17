@@ -253,6 +253,7 @@ namespace TextEditor
             TextEditor te = ((TextEditor)sender);
             te.Dispose();
             m_viewTextEditor.Remove(te);
+            this.Close();
         }
 
         /// <summary>
