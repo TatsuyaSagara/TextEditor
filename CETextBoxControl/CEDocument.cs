@@ -142,7 +142,7 @@ namespace CETextBoxControl
         /// <summary>
         /// 物理行数取得
         /// （物理行：画面に表示されている行）
-        /// ※折返しoffであっても4000行あたりで折り返すので必ず折り返しを考慮しておく必要がある
+        /// ※折返しoffであっても4000桁あたりで折り返すので必ず折り返しを考慮しておく必要がある
         /// ★遅い★
         /// </summary>
         /// <returns>物理行数</returns>
@@ -150,21 +150,12 @@ namespace CETextBoxControl
         {
             int pNum = 0;
 
-            //Stopwatch sw = new Stopwatch();
-            //sw.Start();
+            // ForEach / foreach / for の中で for が一番早いと言われているのでとりあえず for を使っておく
+            // しかも、for の条件にm_textList.Countを指定するのではんく、一度int型の num に入れたほうが早いらしい
+            // →ループ毎に毎回、Countプロパティを呼び出す分遅くなるらしい
 
-#if true // IList使って作った、CEListはForEach使えない
-            m_textList.ForEach(x => pNum += x.m_physicalLine.Count);
-            //m_textList.ForEach(x => pNum += x.m_sldLine);
-#else
-        foreach (SLogicalLine sl in m_textList)
-        {
-            pNum += sl.m_physicalLine.Count;
-        }
-#endif
-
-            //sw.Stop();
-            //Debug.WriteLine("GetLineCountP()実行時間：" + sw.Elapsed + " / pNum：" + pNum);
+            //m_textList.ForEach(x => pNum += x.m_physicalLine.Count);
+            for (int i = 0, num = m_textList.Count; i < num; i++) pNum += m_textList[i].m_physicalLine.Count;
 
             return pNum;
         }
@@ -717,16 +708,9 @@ namespace CETextBoxControl
         /// <param name="len">長さ</param>
         public void DelMidStringL(int lRow, int lCol, int len)
         {
-            try
-            {
-                // 文字列削除
-                //m_textList[lRow].m_text = m_textList[lRow].m_text.Remove(lCol, len);
-                SetText(lRow, m_textList[lRow].m_text.Remove(lCol, len), true);
-            }
-            catch (ArgumentOutOfRangeException e)
-            {
-                throw e;
-            }
+            // 文字列削除
+            //m_textList[lRow].m_text = m_textList[lRow].m_text.Remove(lCol, len);
+            SetText(lRow, m_textList[lRow].m_text.Remove(lCol, len), true);
 
             UpdateLogicalLineDataL(lRow);
         }
@@ -864,6 +848,7 @@ namespace CETextBoxControl
             // 複数行にまたぐか？
             if (/*m_*/sRng.Y != /*m_*/eRng.Y)
             {
+                // 複数行の場合
                 int procNum = /*m_*/eRng.Y - /*m_*/sRng.Y + 1; // 処理する行数
 
                 for (int idx = 0; idx < procNum; idx++)
@@ -1455,7 +1440,7 @@ namespace CETextBoxControl
             int maxLine = GetLineCountP();      // この処理に時間が掛かる。あらかじめ持っていられたら良いが。
 
             // 検索
-            if (row < maxLine / 2)
+            if (row < (maxLine / 2))
             {
                 // 上から検索
                 int len = m_textList.Count;
@@ -1861,13 +1846,18 @@ namespace CETextBoxControl
         /// <returns></returns>
         public Boolean GetEditStatus()
         {
-            foreach (SLogicalLine cm in m_textList)
+            // foreach より for の方が早いらしい(僅かな高速化)
+            for (int i = 0, num = m_textList.Count; i < num; i++)
             {
-                if (cm.editFlg == true)
-                {
-                    return true;
-                }
+                if (m_textList[i].editFlg) return true;
             }
+            //foreach (SLogicalLine cm in m_textList)
+            //{
+            //    if (cm.editFlg == true)
+            //    {
+            //        return true;
+            //    }
+            //}
 
             return false;
         }
