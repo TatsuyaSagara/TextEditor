@@ -639,6 +639,9 @@ namespace CETextBoxControl
         [DllImport("gdi32.dll", EntryPoint = "CreateCompatibleDC", SetLastError = true)]
         public static extern IntPtr CreateCompatibleDC([In] IntPtr hdc);
 
+        [DllImport("gdi32.dll", EntryPoint = "DeleteDC")]
+        public static extern bool DeleteDC([In] IntPtr hdc);
+
         //[DllImport("coredll.dll")]
         //public static extern IntPtr GetDesktopWindow();
 
