@@ -64,6 +64,7 @@ namespace CETextBoxControl
         /// <summary>
         /// コンストラクタ
         /// </summary>
+        /// <param name="hdc">ハンドル</param>
         public CEDocument(IntPtr hdc)
         {
             // 空行（[EOF]）情報を作成
@@ -235,7 +236,7 @@ namespace CETextBoxControl
         /// <summary>
         /// 折返情報更新
         /// </summary>
-        /// <param name="row">更新する論理行</param>
+        /// <param name="lRow">更新する論理行</param>
         public void UpdateLogicalLineDataL(int lRow)
         {
             // 指定された論理行番号の情報がない、または論理行データがない場合は何もしない
@@ -253,7 +254,7 @@ namespace CETextBoxControl
         /// <summary>
         /// 折返情報更新
         /// </summary>
-        /// <param name="row">更新する論理行</param>
+        /// <param name="pRow">更新する物理行</param>
         public void UpdateLogicalLineDataP(int pRow)
         {
             // 物理位置 → 論理位置
@@ -289,6 +290,7 @@ namespace CETextBoxControl
         /// 指定した【論理行】に一行追加し、指定した文字列を設定する
         /// </summary>
         /// <param name="lRow">挿入する論理行位置</param>
+        /// <param name="text">挿入文字列</param>
         public void InsertLineL(int lRow, string text)
         {
             InsertLogicalLineData(lRow, MakeLineData(lRow, text));
@@ -436,7 +438,7 @@ namespace CETextBoxControl
         /// 指定した論理行の指定した位置から指定した長さ分のテキストを削除
         /// </summary>
         /// <param name="lRow">論理行</param>
-        /// <param name="pCol">位置</param>
+        /// <param name="lCol">論理列</param>
         /// <param name="len">長さ</param>
         /// <returns>文字列</returns>
         public string RemoveText(int lRow, int lCol, int len)
@@ -467,21 +469,21 @@ namespace CETextBoxControl
         /// （改行含む）
         /// 表示行数範囲外を指定された場合、Emptyを返す
         /// </summary>
-        /// <param name="row">行</param>
+        /// <param name="pRow">行</param>
         /// <returns></returns>
-        public string GetLineStringP(int row)
+        public string GetLineStringP(int pRow)
         {
             int lLine;
             int pLine;
-            getPosition(row, out lLine, out pLine);
+            getPosition(pRow, out lLine, out pLine);
 
-            return GetLineStringP(row, lLine, pLine);
+            return GetLineStringP(pRow, lLine, pLine);
         }
-        public string GetLineStringP(int row, int lLine, int pLine)
+        public string GetLineStringP(int pRow, int lLine, int pLine)
         {
             string str = "";
 
-            if (0 <= row && row < this.GetLineCountP())
+            if (0 <= pRow && pRow < this.GetLineCountP())
             {
                 str = m_textList[lLine].m_text.Substring(m_textList[lLine].m_physicalLine[pLine].m_offset, m_textList[lLine].m_physicalLine[pLine].m_length);
                 SPhysicalLine spd = m_textList[lLine].m_physicalLine[pLine];
@@ -496,21 +498,22 @@ namespace CETextBoxControl
         /// （改行含む）
         /// 表示行数範囲外を指定された場合、Emptyを返す
         /// </summary>
-        /// <param name="row">行</param>
+        /// <param name="pRow">物理行</param>
+        /// <param name="count">行範囲(この値よりも小さい行を取得)</param>
         /// <returns></returns>
-        public string GetLineStringPEx(int row, int count)
+        public string GetLineStringPEx(int pRow, int count)
         {
             int lLine;
             int pLine;
-            getPosition(row, out lLine, out pLine);
+            getPosition(pRow, out lLine, out pLine);
 
-            return GetLineStringPEx(row, count, lLine, pLine);
+            return GetLineStringPEx(pRow, count, lLine, pLine);
         }
-        public string GetLineStringPEx(int row, int count, int lLine, int pLine)
+        public string GetLineStringPEx(int pRow, int count, int lLine, int pLine)
         {
             string str = "";
 
-            if (0 <= row && row < count)
+            if (0 <= pRow && pRow < count)
             {
                 //str = m_textList[lLine].m_text.Substring(m_textList[lLine].m_physicalLine[pLine].m_offset, m_textList[lLine].m_physicalLine[pLine].m_length);
                 SPhysicalLine spd = m_textList[lLine].m_physicalLine[pLine];
@@ -523,18 +526,18 @@ namespace CETextBoxControl
         /// <summary>
         /// 指定した行の指定した列までの先頭からの文字列を取得
         /// </summary>
-        /// <param name="row">指定行数(物理)</param>
-        /// <param name="col">取得位置</param>
+        /// <param name="pRow">指定行数(物理)</param>
+        /// <param name="pCol">取得位置</param>
         /// <returns>取得文字列(失敗した場合は空文字列)</returns>
-        public string GetLeftStringP(int row, int col)
+        public string GetLeftStringP(int pRow, int pCol)
         {
             int lLine;
             int pLine;
-            getPosition(row, out lLine, out pLine);
+            getPosition(pRow, out lLine, out pLine);
 
-            return GetLeftStringP(row, col, lLine, pLine);
+            return GetLeftStringP(pRow, pCol, lLine, pLine);
         }
-        public string GetLeftStringP(int row, int col, int lLine, int pLine)
+        public string GetLeftStringP(int pRow, int pCol, int lLine, int pLine)
         {
             if (lLine > m_textList.Count - 1)
             {
@@ -545,21 +548,21 @@ namespace CETextBoxControl
             int offset = m_textList[lLine].m_physicalLine[pLine].m_offset;
             int len = m_textList[lLine].m_physicalLine[pLine].m_length;
             int length = m_textList[lLine].m_text.Substring(offset, len/*m_textList[lLine].m_physicalLine[pLine].m_length*/).Length;
-            if (length < col)
+            if (length < pCol)
             {
                 // 取得位置が行末以降の場合は行末までとする（フリーカーソル対応）
-                col = length;
+                pCol = length;
             }
 
             // 文字列を返却
-            return m_textList[lLine].m_text.Substring(offset, col);
+            return m_textList[lLine].m_text.Substring(offset, pCol);
         }
 
         /// <summary>
         /// 指定された論理行の指定された論理列より最後までの情報を取得
         /// </summary>
-        /// <param name="row">論理行</param>
-        /// <param name="col">論理列</param>
+        /// <param name="lRow">論理行</param>
+        /// <param name="lCol">論理列</param>
         /// <returns></returns>
         public string GetRightStringL(int lRow, int lCol)
         {
@@ -579,25 +582,25 @@ namespace CETextBoxControl
         /// 指定した物理行の指定した物理列から終端までの文字列を取得
         /// （改行含む）
         /// </summary>
-        /// <param name="row"></param>
-        /// <param name="col"></param>
+        /// <param name="pRow"></param>
+        /// <param name="pCol"></param>
         /// <returns>取得文字列（指定列が範囲外の場合は空文字）</returns>
-        public string GetRightStringP(int row, int col)
+        public string GetRightStringP(int pRow, int pCol)
         {
             int lLine;
             int pLine;
-            getPosition(row, out lLine, out pLine);
+            getPosition(pRow, out lLine, out pLine);
 
-            return GetRightStringP(row, col, lLine, pLine);
+            return GetRightStringP(pRow, pCol, lLine, pLine);
         }
-        public string GetRightStringP(int row, int col, int lLine, int pLine)
+        public string GetRightStringP(int pRow, int pCol, int lLine, int pLine)
         {
 #if true
-            string str = GetLineStringP(row); // 物理行(改行含)取得
+            string str = GetLineStringP(pRow); // 物理行(改行含)取得
             int len = str.Length;
-            if (len > col)
+            if (len > pCol)
             {
-                return str.Substring(col, len - col);
+                return str.Substring(pCol, len - pCol);
             }
             else
             {
@@ -638,21 +641,21 @@ namespace CETextBoxControl
         /// 先頭から指定した物理行の指定した物理列までの文字を削除
         /// (物理列の文字は含まない)
         /// </summary>
-        /// <param name="row">行</param>
-        /// <param name="col">列</param>
-        public void DelLeftString(int row, int col)
+        /// <param name="pRow">行</param>
+        /// <param name="pCol">列</param>
+        public void DelLeftString(int pRow, int pCol)
         {
             int lLine;
             int pLine;
-            getPosition(row, out lLine, out pLine);
+            getPosition(pRow, out lLine, out pLine);
 
-            DelLeftString(row, col, lLine, pLine);
+            DelLeftString(pRow, pCol, lLine, pLine);
         }
-        public void DelLeftString(int row, int col, int lLine, int pLine)
+        public void DelLeftString(int pRow, int pCol, int lLine, int pLine)
         {
-            int pCol = m_textList[lLine].m_physicalLine[pLine].m_offset;
+            int __col = m_textList[lLine].m_physicalLine[pLine].m_offset;
             //m_textList[lLine].m_text = m_textList[lLine].m_text.Remove(pCol, col);
-            SetText(lLine, m_textList[lLine].m_text.Remove(pCol, col), true);
+            SetText(lLine, m_textList[lLine].m_text.Remove(__col, pCol), true);
 
             //m_doc.UpdateLogicalLineData(lLine);
         }
@@ -661,18 +664,18 @@ namespace CETextBoxControl
         /// 指定した論理行の指定した論理列から終端までの文字を削除
         /// (物理列の文字も含む)
         /// </summary>
-        /// <param name="row">行(論理)</param>
-        /// <param name="col">列(論理)</param>
-        public void DelRightStringL(int row, int col)
+        /// <param name="pRow">行(論理)</param>
+        /// <param name="pCol">列(論理)</param>
+        public void DelRightStringL(int pRow, int pCol)
         {
             string text = "";
 
-            int len = m_textList[row].m_text.Length;
-            if ((0 <= col) && (col < len))
+            int len = m_textList[pRow].m_text.Length;
+            if ((0 <= pCol) && (pCol < len))
             {
-                text = m_textList[row].m_text.Remove(col, len - col);
-                m_textList[row] = new SLogicalLine();
-                SetText(row, text, true);
+                text = m_textList[pRow].m_text.Remove(pCol, len - pCol);
+                m_textList[pRow] = new SLogicalLine();
+                SetText(pRow, text, true);
             }
         }
 
@@ -680,22 +683,22 @@ namespace CETextBoxControl
         /// 指定した物理行の指定した物理列から終端までの文字を削除
         /// (物理列の文字も含む)
         /// </summary>
-        /// <param name="row">行</param>
-        /// <param name="col">列</param>
-        public void DelRightStringP(int row, int col)
+        /// <param name="pRow">物理行</param>
+        /// <param name="pCol">物理列</param>
+        public void DelRightStringP(int pRow, int pCol)
         {
             int lLine;
             int pLine;
-            getPosition(row, out lLine, out pLine);
+            getPosition(pRow, out lLine, out pLine);
 
-            DelRightStringP(row, col, lLine, pLine);
+            DelRightStringP(pRow, pCol, lLine, pLine);
         }
-        public void DelRightStringP(int row, int col, int lLine, int pLine)
+        public void DelRightStringP(int pRow, int pCol, int lLine, int pLine)
         {
-            int pCol = m_textList[lLine].m_physicalLine[pLine].m_offset + col;
-            int pLen = m_textList[lLine].m_physicalLine[pLine].m_length;
+            int __col = m_textList[lLine].m_physicalLine[pLine].m_offset + pCol;
+            int __len = m_textList[lLine].m_physicalLine[pLine].m_length;
             //m_textList[lLine].m_text = m_textList[lLine].m_text.Remove(pCol, pLen - col);
-            SetText(lLine,m_textList[lLine].m_text.Remove(pCol, pLen - col), true);
+            SetText(lLine,m_textList[lLine].m_text.Remove(__col, __len - pCol), true);
 
             //m_doc.UpdateLogicalLineData(lLine);
         }
@@ -703,8 +706,8 @@ namespace CETextBoxControl
         /// <summary>
         /// 指定行(論理)の指定した列(論理)から指定した長さを削除
         /// </summary>
-        /// <param name="row">行(論理)</param>
-        /// <param name="col">列(論理)</param>
+        /// <param name="lRow">行(論理)</param>
+        /// <param name="lCol">列(論理)</param>
         /// <param name="len">長さ</param>
         public void DelMidStringL(int lRow, int lCol, int len)
         {
@@ -823,9 +826,9 @@ namespace CETextBoxControl
 
 
 
-#endregion
+        #endregion
 
-#region 選択範囲操作
+        #region 選択範囲操作
 
         /* -----------------------------------------------------------------------*/
         /* 選択範囲操作                                                           */
@@ -834,10 +837,8 @@ namespace CETextBoxControl
         /// <summary>
         /// 通常選択範囲を文字列として返却
         /// </summary>
-        /// <param name="sRow"></param>
-        /// <param name="sCol"></param>
-        /// <param name="eRow"></param>
-        /// <param name="eCol"></param>
+        /// <param name="sRng">選択開始位置</param>
+        /// <param name="eRng">選択終了位置</param>
         /// <returns></returns>
         public string GetRangeString(Point sRng, Point eRng)
         {
@@ -900,10 +901,13 @@ namespace CETextBoxControl
         /// <summary>
         /// 矩形選択範囲を文字列として返却
         /// </summary>
-        /// <param name="sRow"></param>
-        /// <param name="sCol"></param>
-        /// <param name="eRow"></param>
-        /// <param name="eCol"></param>
+        /// <param name="sRng">選択開始位置</param>
+        /// <param name="eRng">選択終了位置</param>
+        /// <param name="curCaretPos"></param>
+        /// <param name="rectCaretPos"></param>
+        /// <param name="viewLeftCol"></param>
+        /// <param name="gsIdx"></param>
+        /// <param name="geIdx"></param>
         /// <returns></returns>
         public string GetRectangleString(Point sRng, Point eRng, int curCaretPos, int rectCaretPos, int viewLeftCol, ref int gsIdx, ref int geIdx)
         {
@@ -984,10 +988,14 @@ namespace CETextBoxControl
         /// <summary>
         /// [矩形選択用]指定した位置(ピクセル)の列位置(物理)を取得
         /// </summary>
-        /// <param name="row">[入力]行(物理)</param>
+        /// <param name="pRow">[入力]行(物理)</param>
         /// <param name="sColPixel">[入力]選択位置１(ピクセル)(文字列の一番左が0)</param>
         /// <param name="eColPixel">[入力]選択位置２(ピクセル)(文字列の一番左が0)</param>
-        public void GetRectMovePosV(int row, int sColPixel, int eColPixel, string objStr, int viewLeftCol, out int gsIdx, out int geIdx)
+        /// <param name="objStr"></param>
+        /// <param name="viewLeftCol"></param>
+        /// <param name="gsIdx"></param>
+        /// <param name="geIdx"></param>
+        public void GetRectMovePosV(int pRow, int sColPixel, int eColPixel, string objStr, int viewLeftCol, out int gsIdx, out int geIdx)
         {
             Size sz = Size.Empty;
             int len = 0;
@@ -1086,13 +1094,30 @@ namespace CETextBoxControl
             //posX = posX - hiddenPixelSize;
         }
 
+        // テスト用
+        // 矩形選択の場合は行末の改行は削除しない
+        public void DelRangeStringRectangleL(int sRowL, int sColL, int eRowL, int eColL)
+        {
+            int len = m_textList[eRowL].m_text.Length - 2; // -2は改行分(本来ならば改行コードをのチェックも必要)
+            if ((eColL > len - 1) && (eRowL != m_textList.Count - 1))
+            {
+                eColL = len;
+            }
+
+            // 文字列削除
+            DelMidStringL(sRowL, sColL, eColL - sColL);
+
+            // 折返し情報更新
+            UpdateLogicalLineDataL(sRowL);
+        }
+
         /// <summary>
         /// 指定(論理位置)した範囲の文字列を削除する
         /// </summary>
-        /// <param name="sRow">削除開始行(論理)</param>
-        /// <param name="sCol">削除開始列(論理)</param>
-        /// <param name="eRow">削除終了行(論理)</param>
-        /// <param name="eCol">削除終了列(論理)</param>
+        /// <param name="sRowL">削除開始行(論理)</param>
+        /// <param name="sColL">削除開始列(論理)</param>
+        /// <param name="eRowL">削除終了行(論理)</param>
+        /// <param name="eColL">削除終了列(論理)</param>
         public void DelRangeStringL(int sRowL, int sColL, int eRowL, int eColL)
         {
             // 削除位置が "改行以降" かつ "最終行でない" 場合、
@@ -1181,6 +1206,19 @@ namespace CETextBoxControl
             }
         }
 
+        // テスト用
+        // 矩形選択の場合は行末の改行は削除しない
+        public void DelRangeStringRectangleP(int sRowP, int sColP, int eRowP, int eColP)
+        {
+            // 通常選択範囲の 物理位置 → 論理位置 変換
+            int sRowL, sColL, eRowL, eColL;
+            PtoLPos(sRowP, sColP, out sRowL, out sColL);
+            PtoLPos(eRowP, eColP, out eRowL, out eColL);
+
+            // 指定(論理位置)した範囲の文字列を削除する
+            DelRangeStringRectangleL(sRowL, sColL, eRowL, eColL);
+        }
+
         /// <summary>
         /// 指定(物理位置)した範囲の文字列を削除する
         /// </summary>
@@ -1199,9 +1237,9 @@ namespace CETextBoxControl
             DelRangeStringL(sRowL, sColL, eRowL, eColL);
         }
 
-#endregion
+        #endregion
 
-#region その他操作
+        #region その他操作
 
         /* -----------------------------------------------------------------------*/
         /* その他操作                                                             */
@@ -1210,6 +1248,10 @@ namespace CETextBoxControl
         /// <summary>
         /// 物理位置から論理位置に変換
         /// </summary>
+        /// <param name="pRow">物理行(変換元)</param>
+        /// <param name="pCol">物理列(変換元)</param>
+        /// <param name="lRow">論理行(変換先)</param>
+        /// <param name="lCol">論理列(変換先)</param>
         public void PtoLPos(int pRow, int pCol, out int lRow, out int lCol)
         {
             int lLine;
@@ -1231,6 +1273,10 @@ namespace CETextBoxControl
         /// 論理位置から物理位置に変換
         /// （ここも★うんこ★みたいなんで修正したい）
         /// </summary>
+        /// <param name="lRow">論理行(変換元)</param>
+        /// <param name="lCol">論理列(変換元)</param>
+        /// <param name="pRow">物理行(変換先)</param>
+        /// <param name="pCol">物理列(変換先)</param>
         public void LtoPPos(int lRow, int lCol, out int pRow, out int pCol)
         {
             pRow = -1;
@@ -1274,6 +1320,7 @@ namespace CETextBoxControl
         /// <summary>
         /// 物理行情報作成
         /// </summary>
+        /// <param name="line">設定位置</param>
         /// <param name="text">物理行を作成するテキスト</param>
         /// <returns>物理行情報</returns>
         public SLogicalLine MakeLineData(int line, string text)
@@ -1396,21 +1443,21 @@ namespace CETextBoxControl
         /// 指定された物理行からバッファの位置を特定
         /// この方法も結構★うんこ★なので変えたい
         /// </summary>
-        /// <param name="row">物理行</param>
+        /// <param name="pRow">物理行</param>
         /// <param name="lLine">論理行</param>
         /// <param name="pLine">折り返し位置</param>
         /// <returns>true:行あり／false:行なし</returns>
         static int svRow = -1;
         static int svlLine = -1;
         static int svpLine = -1;
-        public Boolean getPosition(int row, out int lLine, out int pLine)
+        public Boolean getPosition(int pRow, out int lLine, out int pLine)
         {
             lLine = 0;
             pLine = 0;
 
             //chLine = 0;
 
-            if (0 > row)
+            if (0 > pRow)
             {
                 return false;
             }
@@ -1418,14 +1465,14 @@ namespace CETextBoxControl
             // 折返し表示でない場合
             if (!m_ShareData.m_wrapPositionFlag)
             {
-                lLine = row; // 折り返しなしなので、物理行＝論理行
+                lLine = pRow; // 折り返しなしなので、物理行＝論理行
                 pLine = 0;
                 return true;
             }
 
             // 保存中の物理行と同一の場合は保存している値を返却して終了
             // 注）getPositionをコールするタイミングによって挙動がおかしくなる可能性あり
-            if (row == svRow)
+            if (pRow == svRow)
             {
                 lLine = svlLine;
                 pLine = svpLine;
@@ -1440,17 +1487,17 @@ namespace CETextBoxControl
             int maxLine = GetLineCountP();      // この処理に時間が掛かる。あらかじめ持っていられたら良いが。
 
             // 検索
-            if (row < (maxLine / 2))
+            if (pRow < (maxLine / 2))
             {
                 // 上から検索
                 int len = m_textList.Count;
                 while (lLine < len)
                 {
                     pLine += m_textList[lLine].m_physicalLine.Count;
-                    if (row < pLine)
+                    if (pRow < pLine)
                     {
-                        pLine = m_textList[lLine].m_physicalLine.Count - (pLine - row);
-                        svRow = row;
+                        pLine = m_textList[lLine].m_physicalLine.Count - (pLine - pRow);
+                        svRow = pRow;
                         svlLine = lLine;
                         svpLine = pLine;
                         return true;
@@ -1466,10 +1513,10 @@ namespace CETextBoxControl
                 while (lLine >= 0)
                 {
                     pLine -= m_textList[lLine].m_physicalLine.Count;
-                    if (row > pLine)
+                    if (pRow > pLine)
                     {
-                        pLine = (row - pLine) - 1;
-                        svRow = row;
+                        pLine = (pRow - pLine) - 1;
+                        svRow = pRow;
                         svlLine = lLine;
                         svpLine = pLine;
                         return true;
@@ -1486,8 +1533,6 @@ namespace CETextBoxControl
         /// 指定した文字列のピクセル数を取得
         /// 文字間隔も考慮済み
         /// </summary>
-        /// <param name="handle">ハンドル</param>
-        /// <param name="f">フォント</param>
         /// <param name="cs">文字間(ピクセル単位)</param>
         /// <param name="s">ピクセル数を取得する文字列</param>
         /// <returns>指定された文字列のピクセル数</returns>
@@ -1737,7 +1782,7 @@ namespace CETextBoxControl
         /// <summary>
         /// 改行文字のみかチェック
         /// </summary>
-        /// <param name="str"></param>
+        /// <param name="str">改行チェックする文字列</param>
         /// <returns>true:改行のみ / false:改行のでない</returns>
         public Boolean IsLineFeedOnly(string str)
         {
@@ -1752,9 +1797,8 @@ namespace CETextBoxControl
         /// <summary>
         /// 表示文字列から改行コードを取得
         /// </summary>
-        /// <param name="ptr"></param>
-        /// <param name="length"></param>
-        /// <returns></returns>
+        /// <param name="str">改行チェックする文字列</param>
+        /// <returns>改行コード</returns>
         public string GetLineFeed(string str)
         {
             int len = str.Length;
@@ -1768,8 +1812,8 @@ namespace CETextBoxControl
         /// <summary>
         /// 指定した文字列から改行を除いた文字列を返す
         /// </summary>
-        /// <param name="ptr">改行を除く文字列</param>
-        /// <returns></returns>
+        /// <param name="str">改行チェックする文字列</param>
+        /// <returns>改行を除いた文字列</returns>
         public string GetNotLineFeedString(string ptr)
         {
             int length = ptr.Length;
@@ -1784,11 +1828,11 @@ namespace CETextBoxControl
         /// <summary>
         /// 指定した行(物理)の文字列から改行を除いた文字列を返す
         /// </summary>
-        /// <param name="row">改行を除く文字列の行</param>
+        /// <param name="pRow">改行を除く文字列の物理行</param>
         /// <returns></returns>
-        public string GetNotLineFeedStringP(int row)
+        public string GetNotLineFeedStringP(int pRow)
         {
-            string ptr = GetLineStringP(row);
+            string ptr = GetLineStringP(pRow);
 
             int length = ptr.Length;
 
