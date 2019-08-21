@@ -93,12 +93,12 @@ namespace CETextBoxControl
         /// <returns></returns>
         public CEUndoRedoData GetUndoOpe()
         {
-            if (m_ppCOpeArr.Count == 0) return null;
-            if (m_opeIdx == -1) return null;
+            if (m_ppCOpeArr.Count == 0) return null;    // Undo/Redo情報が存在しない
+            if (m_opeIdx == -1) return null;            // Undo/Redo位置が初期値
 
-            int cnt = m_opeIdx;
+            int __opeIdx = m_opeIdx;
             m_opeIdx--;
-            return m_ppCOpeArr[cnt];
+            return m_ppCOpeArr[__opeIdx];
         }
 
         /// <summary>
@@ -115,7 +115,7 @@ namespace CETextBoxControl
             return m_ppCOpeArr[cnt];
         }
 
-        CEUndoRedoData UndoRedoData = null;
+        CEUndoRedoData m_UndoRedoData = null;
 
         /// <summary>
         /// 操作前情報の保存
@@ -128,17 +128,17 @@ namespace CETextBoxControl
             this.DelOpe();
 
             // Undo/Redo 操作情報格納エリア確保
-            if (UndoRedoData == null)
+            if (m_UndoRedoData == null)
             {
-                UndoRedoData = new CEUndoRedoData();
+                m_UndoRedoData = new CEUndoRedoData();
             }
 
             // Undo/Redo 操作前のキャレット位置保存（論理位置として保存）
             int lRow, lCol;
             ee.m_doc.PtoLPos(p.Y, p.X, out lRow, out lCol); // 物理位置→論理位置
-            UndoRedoData.m_preCaret.X = lCol;
-            UndoRedoData.m_preCaret.Y = lRow;
-            UndoRedoData.m_selectType = selectType;
+            m_UndoRedoData.m_preCaret.X = lCol;
+            m_UndoRedoData.m_preCaret.Y = lRow;
+            m_UndoRedoData.m_selectType = selectType;
         }
 
         /// <summary>
@@ -150,29 +150,29 @@ namespace CETextBoxControl
         /// <param name="ee">実行クラス</param>
         public void ProUndoRedo(Point p, int ope, string str, CEEditView ee)
         {
-            if (UndoRedoData == null)
+            if (m_UndoRedoData == null)
             {
                 // Undo/Redo 情報がない場合は何もしない
                 return;
             }
 
             // Undo/Redo 操作保存
-            UndoRedoData.m_ope = ope;
+            m_UndoRedoData.m_ope = ope;
 
             // Undo/Redo 操作後のキャレット位置保存（論理位置として保存）
             int lRow, lCol;
             ee.m_doc.PtoLPos(p.Y, p.X, out lRow, out lCol); // 物理位置→論理位置
-            UndoRedoData.m_aftCaret.X = lCol;
-            UndoRedoData.m_aftCaret.Y = lRow;
+            m_UndoRedoData.m_aftCaret.X = lCol;
+            m_UndoRedoData.m_aftCaret.Y = lRow;
 
             // Undo/Redo 操作データ保存
-            UndoRedoData.m_pcmemData = str;
+            m_UndoRedoData.m_pcmemData = str;
 
             // Undo/Redo 保存
-            this.Append(UndoRedoData);
+            this.Append(m_UndoRedoData);
 
             // Undo/Redo 情報削除
-            UndoRedoData = null;
+            m_UndoRedoData = null;
         }
     }
 }
