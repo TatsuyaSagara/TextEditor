@@ -3340,10 +3340,12 @@ namespace CETextBoxControl
             // 範囲選択状態の場合、選択されている文字列を削除する
             if (m_selectType != NONE_RANGE_SELECT)
             {
+                // 通常選択または矩形選択状態の場合
                 DeleteRange();
             }
             else
             {
+                // 未選択状態の場合
                 // キャレット位置が範囲外またはEOFの場合、何もしない
                 if ((!IsCaretRangeP(m_caretPositionP.Y, m_caretPositionP.X)) || (isEofPos(m_caretPositionP.Y, m_caretPositionP.X)))
                 {
@@ -3388,6 +3390,7 @@ namespace CETextBoxControl
 
             // 再描画
             CEWin32Api.InvalidateRect(this.Handle, IntPtr.Zero, true);
+            CEWin32Api.UpdateWindow(this.Handle);
             //this.Refresh();
             //OnPaint();
         }
@@ -4686,7 +4689,7 @@ namespace CETextBoxControl
             {
                 return;
             }
-            if(OpeData.m_ope == UndoRedoCode.UR_INSERT)
+            if(OpeData.m_ope == UndoRedoCode.UR_INSERT) // 挿入だった場合、削除
             {
                 // 操作前位置(論理位置→物理位置)
                 int pPreRow, pPreCol;
@@ -4722,7 +4725,7 @@ namespace CETextBoxControl
                 //this.Refresh();
                 ShowCaret();
             }
-            else if (OpeData.m_ope == UndoRedoCode.UR_DELETE)
+            else if (OpeData.m_ope == UndoRedoCode.UR_DELETE) // 削除だった場合、挿入
             {
                 // 保持データが空の場合は挿入処理は行わない
                 if (OpeData.m_pcmemData != "")
@@ -5503,7 +5506,7 @@ namespace CETextBoxControl
                 UndoRedoOpe.ProUndoRedo(eRng, UndoRedoCode.UR_DELETE, delStr, this);
 
                 // 指定範囲の文字列を削除
-                m_doc.DelRangeStringP(sRng.Y, sRng.X, eRng.Y, eRng.X);
+                m_doc.DelRangeStringRectangleP(sRng.Y, sRng.X, eRng.Y, eRng.X);
             }
 
             // 通常カーソルモードに戻す
