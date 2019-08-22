@@ -114,7 +114,6 @@ namespace CETextBoxControl
         /// </summary>
         private int m_scrollAmountPixelH;
 
-
         // --------------------------------------------------
         // --------------------------------------------------
 
@@ -1009,27 +1008,52 @@ namespace CETextBoxControl
                 return false;
             }
 #else
-            // 読み込むファイルの文字コード取得
-            Ude.CharsetDetector cdet = new Ude.CharsetDetector();
-            using (FileStream fs = File.OpenRead(file))
+
+            var replacement = new DecoderReplacementFallback("�[FALLBACK]");
+            Func<int, Encoding> CodePageをEncodingに = (cp) => {
+                var encoding = (Encoding)Encoding.GetEncoding(cp).Clone();
+                encoding.DecoderFallback = replacement;
+                return encoding;
+            };
+            int[] aryCP = { 65001, 932, 1200, 1201, 51932 };
+            int minLength = int.MaxValue;
+            string result = null;
+            enc = null;
+            byte[] bytes = File.ReadAllBytes(file);
+            foreach (var codepage in aryCP)
             {
-                cdet.Feed(fs);
-                cdet.DataEnd();
-                if (cdet.Charset == null)
+                var encoding = CodePageをEncodingに(codepage);
+                string s = encoding.GetString(bytes);
+                int length = Encoding.UTF8.GetByteCount(s);
+                if (length < minLength)
                 {
-                    // 読み込むファイルの文字コード取得（再チャレンジ）
-                    enc = CECommon.GetEncoding(File.ReadAllBytes(file));
-                    if (enc == null)
-                    {
-                        // 2回チェックしてダメなら仕方ない...。
-                        return false;
-                    }
-                }
-                else
-                {
-                    enc = Encoding.GetEncoding(cdet.Charset);
+                    minLength = length;
+                    result = s;
+                    enc = encoding;
                 }
             }
+
+            // 読み込むファイルの文字コード取得
+            //Ude.CharsetDetector cdet = new Ude.CharsetDetector();
+            //using (FileStream fs = File.OpenRead(file))
+            //{
+            //    cdet.Feed(fs);
+            //    cdet.DataEnd();
+            //    if (cdet.Charset == null)
+            //    {
+            //        // 読み込むファイルの文字コード取得（再チャレンジ）
+            //        enc = CECommon.GetEncoding(File.ReadAllBytes(file));
+            //        if (enc == null)
+            //        {
+            //            // 2回チェックしてダメなら仕方ない...。
+            //            return false;
+            //        }
+            //    }
+            //    else
+            //    {
+            //        enc = Encoding.GetEncoding(cdet.Charset);
+            //    }
+            //}
 #endif
             // CEEditViewの初期化
             Init();
@@ -1657,7 +1681,8 @@ namespace CETextBoxControl
                 if (px > screenWidth) break;
 
                 // 文字取得
-                string txt = s[col].ToString();
+                //string txt0 = s[col].ToString();
+                string txt = s.Substring(col, 1);
 
                 // タブ
                 if (txt == "\t")
@@ -3004,7 +3029,7 @@ namespace CETextBoxControl
                 // キャレットが画面より下にある
                 MoveScrollV(m_caretPositionP.Y - (m_viewTopRowP + m_viewDispRow - 1));
                 m_caretPositionPixel.Y = (m_viewDispRow - 1) * m_ShareData.m_charHeightPixel;
-                m_caretPositionP.Y = m_doc.GetLineCountP() - 1;
+                //m_caretPositionP.Y = m_doc.GetLineCountP() - 1;
             }
 
             //////////////////////////////////
@@ -3097,7 +3122,7 @@ namespace CETextBoxControl
         private void CursorKeyV(int nPos)
         {
             GetCaretPositionV(nPos);
-            MoveCaret(0, nPos); // ★★★テストコード★★★
+            //MoveCaret(0, nPos); // ★★★テストコード★★★
         }
 
         /// <summary>
@@ -3117,7 +3142,7 @@ namespace CETextBoxControl
             }
 
             GetCaretPositionH(nPos);
-            MoveCaret(nPos, 0); // ★★★テストコード★★★
+            //MoveCaret(nPos, 0); // ★★★テストコード★★★
         }
 
         /// <summary>
