@@ -27,7 +27,7 @@ namespace CETextBoxControl
         public int y;   // 行
         public string encode; // エンコード
     }
-
+        
     public class CEEditView : Control
     {
         // ★データ管理用クラスへ移行予定のメソッド★★★★★★★★★★★★★★★★★★★★
@@ -423,6 +423,9 @@ namespace CETextBoxControl
         /// トリプルクリック判定用タイマー
         /// </summary>
         System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer();
+
+        int m_dispStartIndex = -1;
+        int m_dispEndIndex = -1;
 
         /// <summary>
         /// コンストラクタ
@@ -1604,6 +1607,189 @@ namespace CETextBoxControl
             return ret;
         }
 
+        private string GetWord(string s)
+        {
+            string syntax = "";
+
+            string sep = @",.()+-/*=~%[];";
+
+            int col = 0;
+            string word = "";
+            int type = -1;
+            string preTxt = "";
+
+            while (col < s.Length)
+            {
+                string txt = s.Substring(col, 1);
+
+                // タブ(1)
+                if (txt == "\t")
+                {
+                    syntax += "1";
+                }
+                // 全角スペース(2)
+                else if (txt == "　")
+                {
+                    syntax += "2";
+                }
+                // 半角スペース(3)
+                else if (txt == " ")
+                {
+                    syntax += "3";
+                }
+                // セパレータ(4)
+                else if (txt.Contains(sep))
+                {
+                    syntax += "4";
+                }
+                // 通常文字(5)
+                else
+                {
+                    syntax += "5";
+                }
+                col++;
+            }
+
+            return syntax;
+        }
+
+        private int TextOutLine_Ex(string s, int x, int y, int c, int row)
+        {
+            StringBuilder word = new StringBuilder();
+            int wordLen = 0;
+            string preTxt = "";
+
+            if (s.Equals("")) return 0;
+
+            string syntax = GetWord(s);
+
+            s = m_doc.GetNotLineFeedString(s);
+
+            int screenWidth = m_viewDispCol * (m_ShareData.m_nColumnSpace + m_ShareData.m_charWidthPixel);
+
+            if ((m_selectType == RACTANGLE_RANGE_SELECT) && (m_sRng.Y <= row) && (row <= m_eRng.Y))
+            {
+                m_doc.GetRectMovePosV(row, m_rectCaretColPosPixel, m_curCaretColPosPixel, s, m_viewLeftCol, out m_sRectIdx, out m_eRectIdx);
+            }
+
+            int textWidth = 0;
+            int px = x;
+            int py = y;
+
+            int col = 0;
+
+            // 表示画面外（左側）の場合は描画しないで飛ばす（高速化のため）
+            while (col < s.Length)
+            {
+                string txt = s.Substring(col, 1);
+
+                if (txt == "\t")
+                {
+                    textWidth = m_tabWidthPixel - ((px - x) % m_tabWidthPixel);
+                }
+                else
+                {
+                    //CEWin32Api.GetTextExtentPoint32(m_hDrawDC, s, 1, out sz);
+                    //textWidth = sz.Width;
+                    textWidth = this.GetOneWordPixel(txt) + m_ShareData.m_nColumnSpace;
+                    if (col + 1 < s.Length && s[col] == '/' && s[col + 1] == '/')
+                    {
+                        lineComment = true;
+                    }
+                }
+
+                if (px + textWidth >/*=*/ 0)
+                {
+                    break;
+                }
+
+                px += textWidth;
+                col++;
+            }
+
+            while (col < s.Length)
+            {
+                if (px > screenWidth) break;
+
+                string txt = s.Substring(col, 1);
+
+                // タブ
+                if (txt == "\t")
+                {
+                    wordLen = m_tabWidthPixel - ((px - x) % m_tabWidthPixel);
+                    DispText(px, py, c, CEConstants.BackColor, "^", wordLen);
+                    px += wordLen;
+                }
+                // 全角スペース
+                else if (txt == "　")
+                {
+                    wordLen = (m_ShareData.m_charWidthPixel * 2 + m_ShareData.m_nColumnSpace);
+                    DispText(px, py, c, CEConstants.BackColor, "□", wordLen);
+                    px += wordLen;
+                }
+                // 半角スペース
+                else if (txt == " ")
+                {
+                    wordLen = (m_ShareData.m_charWidthPixel + m_ShareData.m_nColumnSpace);
+                    DispText(px, py, c, CEConstants.BackColor, ".", wordLen);
+                    px += wordLen;
+                }
+                // 通常文字
+                else
+                {
+                    int wCol = 0;
+                    while (txt != " " && txt != "　" && txt != "\t")
+                    {
+                        word.Append(txt);
+                        wordLen += this.GetOneWordPixel(txt) + m_ShareData.m_nColumnSpace;
+
+                        wCol++;
+                        if ((col + wCol) >= s.Length) break;
+                        txt = s.Substring((col + wCol), 1);
+                    }
+                    DispText(px, py, c, CEConstants.BackColor, word.ToString(), wordLen);
+                    px += wordLen;
+                    col += word.ToString().Length - 1;
+
+                    word.Clear();
+                    wordLen = 0;
+                }
+
+                if (m_scrollAmountPixelH < 0)
+                {// 左にスクロール（右側へ移動）
+                    if (px < ((m_viewDispCol - m_ShareData.m_scrollColSpage) * m_ShareData.m_charWidthPixel) + m_scrollAmountPixelH
+                        - (m_ShareData.m_charWidthPixel * 2))  // ← 全角文字を考慮して、無効リージョン+半角1文字分描画する
+                    {
+                        px += textWidth;
+                        col++;
+                        continue;
+                    }
+                }
+                else if (m_scrollAmountPixelH > 0)
+                {// 右にスクロール（左側へ移動）
+                    if (px > m_scrollAmountPixelH)
+                    {// 表示すべきところまで描画したので終了
+                        break;
+                    }
+                }
+
+                col++;
+            }
+
+            if (!word.Equals("") && wordLen != 0)
+            {
+                DispText(px, py, c, CEConstants.BackColor, word.ToString(), wordLen);
+                px += wordLen;
+            }
+
+            return px;
+        }
+
+        //private void bbb(string s)
+        //{
+        //    Debug.WriteLine(s);
+        //}
+
         /// <summary>
         /// 文字列表示(一行分)
         /// （指定された文字列を一文字ずつExtTextOutを使って表示する）
@@ -1675,7 +1861,7 @@ namespace CETextBoxControl
             }
 
             // 表示文字数分ループ
-            while (col < s.Length )
+            while (col < s.Length)
             {
                 // 表示画面外（右側）の場合は描画終了
                 if (px > screenWidth) break;
@@ -1727,7 +1913,7 @@ namespace CETextBoxControl
                 if (m_scrollAmountPixelH < 0)
                 {// 左にスクロール（右側へ移動）
                     if (px < ((m_viewDispCol - m_ShareData.m_scrollColSpage) * m_ShareData.m_charWidthPixel) + m_scrollAmountPixelH
-                        - (m_ShareData.m_charWidthPixel*2))  // ← 全角文字を考慮して、無効リージョン+半角1文字分描画する
+                        - (m_ShareData.m_charWidthPixel * 2))  // ← 全角文字を考慮して、無効リージョン+半角1文字分描画する
                     {
                         px += textWidth;
                         col++;
@@ -1802,6 +1988,36 @@ namespace CETextBoxControl
             }
 
             return px;
+        }
+
+        /// <summary>
+        /// 指定された位置へ指定されたカラーで描画設定する
+        /// </summary>
+        /// <param name="x">表示する位置(ピクセル)</param>
+        /// <param name="y">表示する位置(ピクセル)</param>
+        /// <param name="tc">テキスト色</param>
+        /// <param name="bc">テキスト背景色</param>
+        /// <param name="s">テキスト</param>
+        /// <param name="w">テキスト幅(ピクセル)</param>
+        private void DispText(int x, int y, int tc, int bc, string s, int w)
+        {
+            CEWin32Api.RECT rcClip;
+
+            // 文字色と背景色を設定
+            int oldTextColor = (int)CEWin32Api.SetTextColor(m_hDrawDC, tc);
+            int oldBackColor = (int)CEWin32Api.SetBkColor(m_hDrawDC, bc);
+
+            // 文字を設定
+            rcClip.left = x + m_startColPos;
+            rcClip.top = y + m_startRowPos;
+            rcClip.right = x + w + m_startColPos;
+            rcClip.bottom = y + m_ShareData.m_charHeightPixel + m_startRowPos;
+            CEWin32Api.ExtTextOut(m_hDrawDC, x + m_startColPos, y + m_startRowPos, (uint)CEWin32Api.ETOOptions.ETO_CLIPPED | (uint)CEWin32Api.ETOOptions.ETO_OPAQUE, ref rcClip, s, (uint)s.Length/*1*/, null);
+
+            // 必要？
+            //CEWin32Api.SelectObject(m_hDrawDC, hFontOld);
+            CEWin32Api.SetTextColor(m_hDrawDC, oldTextColor);
+            CEWin32Api.SetBkColor(m_hDrawDC, oldBackColor);
         }
 
 #if false // どこからも呼び出されていない
@@ -3467,16 +3683,17 @@ namespace CETextBoxControl
 
             CEWin32Api.RECT cRect;
             CEWin32Api.GetClientRect(this.Handle, out cRect); // クライアント領域サイズ取得
-            Rectangle rctgl = new Rectangle(
-                            m_caretPositionPixel.X - (m_viewLeftCol * m_ShareData.m_charWidthPixel) + m_startColPos,                  // 左上のＸ座行
-                            m_caretPositionPixel.Y - (m_viewTopRowP * m_ShareData.m_charHeightPixel) + m_rulerHeightPixel,                 // 左上のＹ座標
-                            m_caretPositionPixel.X - (m_viewLeftCol * m_ShareData.m_charWidthPixel) + m_startColPos + sz.Width,       // 右下のＸ座標
-                            m_caretPositionPixel.Y - (m_viewTopRowP * m_ShareData.m_charHeightPixel) + m_rulerHeightPixel + sz.Height);    // 右下のＹ座標
-            IntPtr pptrRect = CECommon.RectangleToIntPtr(rctgl);
-            CEWin32Api.InvalidateRect(this.Handle, pptrRect, true);
+            //Rectangle rctgl = new Rectangle(
+            //                m_caretPositionPixel.X - (m_viewLeftCol * m_ShareData.m_charWidthPixel) + m_startColPos,                  // 左上のＸ座行
+            //                m_caretPositionPixel.Y - (m_viewTopRowP * m_ShareData.m_charHeightPixel) + m_rulerHeightPixel,                 // 左上のＹ座標
+            //                m_caretPositionPixel.X - (m_viewLeftCol * m_ShareData.m_charWidthPixel) + m_startColPos + sz.Width,       // 右下のＸ座標
+            //                m_caretPositionPixel.Y - (m_viewTopRowP * m_ShareData.m_charHeightPixel) + m_rulerHeightPixel + sz.Height);    // 右下のＹ座標
+            //IntPtr pptrRect = CECommon.RectangleToIntPtr(rctgl);
+            //CEWin32Api.InvalidateRect(this.Handle, pptrRect, true);
 
             GetCaretPositionH(newChar.Length); // 入力文字数分カーソルキー移動
-            OnPaint(hWnd);
+            //OnPaint(hWnd);
+            CEWin32Api.InvalidateRect(this.Handle, (IntPtr)0, true);
 
             /*****************************************************/
             /* Undo / Redo アンドゥ リドゥ                       */
@@ -3596,6 +3813,11 @@ namespace CETextBoxControl
                 // 画面の行数分ループ（ループ回数を+1して表示しきれない文字も描画する）
                 for (int index = 0; index < m_viewDispRow + 1; index++)
                 {
+                    if ((m_dispStartIndex != -1 && m_dispEndIndex != -1) && (index < m_dispStartIndex && m_dispEndIndex < index ))
+                    {
+                        continue;
+                    }
+
                     int row = index + m_viewTopRowP;
                     if (row < lineCntP)
                     {
@@ -3636,7 +3858,11 @@ namespace CETextBoxControl
 #endif
                         // 文字列表示
                         // テキストデータ表示
-                        length = this.TextOutLine(str, -px, py, CEConstants.FontColor, row);
+                        //Stopwatch sw = new Stopwatch();
+                        //sw.Start();
+                        length = this.TextOutLine_Ex(str, -px, py, CEConstants.FontColor, row);
+                        //sw.Stop();
+                        //Console.WriteLine("テキストデータ表示:" + sw.Elapsed);
 
                         // 改行表示
                         if (!string.IsNullOrEmpty(m_doc.GetLineFeed(str)))
@@ -3682,6 +3908,8 @@ namespace CETextBoxControl
             m_scrollAmountNumV = 0;
             m_scrollAmountPixelH = 0;
 #endif
+            m_dispStartIndex = -1;
+            m_dispEndIndex = -1;
         }
 
         /// <summary>
