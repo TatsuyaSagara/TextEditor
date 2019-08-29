@@ -1653,17 +1653,27 @@ namespace CETextBoxControl
             return syntax;
         }
 
+        string[] keywords = { "public", "private", "protected", "class", "abstruct", "string", "char", "int", "bool", "false", "return", "using", "namespace" };
+        char[] separator = { '\t', '　', ' ', ',', '.', '(', ')', '+', '-', '/', '*', '=', '~', '%', '[', ']', ';' };
+
         private int TextOutLine_Ex(string s, int x, int y, int c, int row)
         {
             StringBuilder word = new StringBuilder();
+            //string word = "";
             int wordLen = 0;
-            string preTxt = "";
+            string txt = "";
+            int wc = -1;
+
+            int textColor = c;
+            int backColor = CEConstants.BackColor;
 
             if (s.Equals("")) return 0;
 
-            string syntax = GetWord(s);
+            //string syntax = GetWord(s);
 
             s = m_doc.GetNotLineFeedString(s);
+            //s += "\0"; // 最後に\0を付加しておく
+            int len = s.Length;
 
             int screenWidth = m_viewDispCol * (m_ShareData.m_nColumnSpace + m_ShareData.m_charWidthPixel);
 
@@ -1679,9 +1689,11 @@ namespace CETextBoxControl
             int col = 0;
 
             // 表示画面外（左側）の場合は描画しないで飛ばす（高速化のため）
-            while (col < s.Length)
+            while (col < len)
             {
-                string txt = s.Substring(col, 1);
+                txt = s.Substring(col, 1);
+
+                if (txt == "\0") break;
 
                 if (txt == "\t")
                 {
@@ -1692,7 +1704,7 @@ namespace CETextBoxControl
                     //CEWin32Api.GetTextExtentPoint32(m_hDrawDC, s, 1, out sz);
                     //textWidth = sz.Width;
                     textWidth = this.GetOneWordPixel(txt) + m_ShareData.m_nColumnSpace;
-                    if (col + 1 < s.Length && s[col] == '/' && s[col + 1] == '/')
+                    if (col + 1 < len && s[col] == '/' && s[col + 1] == '/')
                     {
                         lineComment = true;
                     }
@@ -1707,61 +1719,71 @@ namespace CETextBoxControl
                 col++;
             }
 
-            while (col < s.Length)
+            while (col < len && px <= screenWidth)
             {
-                if (px > screenWidth) break;
-
-                string txt = s.Substring(col, 1);
+                txt = s.Substring(col, 1);
 
                 // タブ
                 if (txt == "\t")
                 {
+                    word.Append("^");
                     wordLen = m_tabWidthPixel - ((px - x) % m_tabWidthPixel);
-                    DispText(px, py, c, CEConstants.BackColor, "^", wordLen);
-                    px += wordLen;
+                    textWidth = wordLen;
+                    wc = 1;
                 }
                 // 全角スペース
                 else if (txt == "　")
                 {
+                    word.Append("□");
                     wordLen = (m_ShareData.m_charWidthPixel * 2 + m_ShareData.m_nColumnSpace);
-                    DispText(px, py, c, CEConstants.BackColor, "□", wordLen);
-                    px += wordLen;
+                    textWidth = wordLen;
+                    wc = 1;
+
+                    textColor = CEConstants.SymbolFontColor;
                 }
                 // 半角スペース
                 else if (txt == " ")
                 {
+                    word.Append(".");
                     wordLen = (m_ShareData.m_charWidthPixel + m_ShareData.m_nColumnSpace);
-                    DispText(px, py, c, CEConstants.BackColor, ".", wordLen);
-                    px += wordLen;
+                    textWidth = wordLen;
+                    wc = 1;
+
+                    textColor = CEConstants.SymbolFontColor;
                 }
                 // 通常文字
                 else
                 {
-                    int wCol = 0;
-                    while (txt != " " && txt != "　" && txt != "\t")
+                    word.Append(s.Substring(col, s.Length - col).Split(separator)[0]);
+                    if (word.Length == 0)
                     {
                         word.Append(txt);
-                        wordLen += this.GetOneWordPixel(txt) + m_ShareData.m_nColumnSpace;
-
-                        wCol++;
-                        if ((col + wCol) >= s.Length) break;
-                        txt = s.Substring((col + wCol), 1);
                     }
-                    DispText(px, py, c, CEConstants.BackColor, word.ToString(), wordLen);
-                    px += wordLen;
-                    col += word.ToString().Length - 1;
+                    wordLen = this.GetOneWordPixel(word.ToString()) + (m_ShareData.m_nColumnSpace * word.Length);
+                    textWidth = this.GetOneWordPixel(txt) + (m_ShareData.m_nColumnSpace * word.Length);
+                    wc = word.Length;
 
-                    word.Clear();
-                    wordLen = 0;
+                    // キーワードマッチ
+                    for (int i = 0; i < keywords.Length; i++)
+                    {
+                        if (word.ToString() == keywords[i])
+                        {
+                            // マッチ
+                            textColor = CEConstants.Keywords;
+                            break;
+                        }
+                    }
                 }
 
                 if (m_scrollAmountPixelH < 0)
                 {// 左にスクロール（右側へ移動）
-                    if (px < ((m_viewDispCol - m_ShareData.m_scrollColSpage) * m_ShareData.m_charWidthPixel) + m_scrollAmountPixelH
-                        - (m_ShareData.m_charWidthPixel * 2))  // ← 全角文字を考慮して、無効リージョン+半角1文字分描画する
+                    if ((px + wordLen) < ((m_viewDispCol - m_ShareData.m_scrollColSpage) * m_ShareData.m_charWidthPixel) + m_scrollAmountPixelH
+                    - (m_ShareData.m_charWidthPixel * 2)) // ← 全角文字を考慮して、無効リージョン+半角1文字分描画する
                     {
-                        px += textWidth;
-                        col++;
+                        //px += textWidth;
+                        //col++;
+                        px += wordLen;
+                        col += wc;
                         continue;
                     }
                 }
@@ -1773,17 +1795,21 @@ namespace CETextBoxControl
                     }
                 }
 
-                col++;
-            }
-
-            if (!word.Equals("") && wordLen != 0)
-            {
-                DispText(px, py, c, CEConstants.BackColor, word.ToString(), wordLen);
+                DispText(px, py, textColor, backColor, word.ToString(), wordLen);
                 px += wordLen;
+                col += wc;
+
+                // カラー初期化
+                textColor = c;
+                backColor = CEConstants.BackColor;
+
+                word.Clear();
+                wordLen = -1;
             }
 
             return px;
         }
+
 
         //private void bbb(string s)
         //{

@@ -107,6 +107,7 @@ namespace CETextBoxControl
 //        public static int SymbolFontColor = CECommon.GetColor(0xdd, 0xdd, 0xdd);        // タブ、全角空白等
         public static int SymbolFontColor = CECommon.GetColor(0x99, 0x99, 0x99);        // タブ、全角空白等
         public static int CommentFontColor = CECommon.GetColor(0x00, 0xaa, 0x00);       // コメント
+        public static int Keywords = CECommon.GetColor(0x44, 0x66, 0xff);              // キーワードハイライト
 
         public static int lrColor = CECommon.GetColor(0x88, 0x88, 0x88);                // 改行
         public static int eofColor = CECommon.GetColor(0x00, 0xaa, 0x00);               // EOF
